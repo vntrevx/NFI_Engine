@@ -1,0 +1,137 @@
+## manual qa
+settings_validate=Validation passed
+settings_draft=Draft saved
+settings_apply=CONFIG_APPLIED
+logs_filter=ERROR
+logs_lookup=CONFIG_VALIDATION_ERROR
+support_bundle_bytes=1132
+readonly_controls=disabled
+readonly_pairlist_preview=BLACKLISTED
+readonly_apply=READONLY_ACTION_BLOCKED
+
+## api ping
+HTTP/1.1 200 OK
+date: Sat, 06 Jun 2026 19:48:47 GMT
+server: uvicorn
+content-length: 17
+content-type: application/json
+
+{"status":"pong"}
+## csrf
+HTTP/1.1 403 Forbidden
+date: Sat, 06 Jun 2026 19:56:37 GMT
+server: uvicorn
+content-length: 92
+content-type: application/json
+
+{"detail":{"code":"CSRF_TOKEN_REQUIRED","message":"csrf token required","audit_e
+vent":null}}
+## docker cleanup
+ Container nfi-engine-api-1 Stopping
+ Container nfi-engine-api-1 Stopped
+ Container nfi-engine-api-1 Removing
+ Container nfi-engine-api-1 Removed
+ Volume nfi-engine_nfi-data Removing
+ Network nfi-engine_default Removing
+ Volume nfi-engine_nfi-config Removing
+ Volume nfi-engine_nfi-logs Removing
+ Volume nfi-engine_nfi-data Removed
+ Volume nfi-engine_nfi-config Removed
+ Volume nfi-engine_nfi-logs Removed
+ Network nfi-engine_default Removed
+
+## scope tail
+trading_halted=true
+new_orders_blocked=true
+emergency_exit=false
+breaker=daily_loss
+channel=webhook
+notification_failed=true
+attempts=1
+failure_code=notification_http_error
+message=transport error
+SANDBOX_VIOLATION: env_read line=21 environment reads must go through typed conf
+ig views
+PASS circuit breaker blocks orders, notifier failure is non-fatal, sandbox block
+s unsafe access
+
+## frontend safety and support reporting
+settings_validate=Validation passed
+settings_draft=Draft saved
+settings_apply=CONFIG_APPLIED
+logs_filter=ERROR
+logs_lookup=CONFIG_VALIDATION_ERROR
+support_bundle_bytes=1132
+readonly_controls=disabled
+readonly_pairlist_preview=BLACKLISTED
+readonly_apply=READONLY_ACTION_BLOCKED
+PASS support_bundle_redacted=true
+
+## dry-run and preview paths
+PREFLIGHT_PASSED
+profile=local-paper
+PASS    CONFIG_VALID    loaded examples/spot-paper.yaml
+PASS    PROFILE_COMPATIBLE      local simulator or paper trading profile
+PASS    PUBLIC_BIND_NOT_ALLOWED api bind is local
+PASS    WEAK_API_TOKEN  api auth policy passed
+PASS    LIVE_TRADING_DISABLED   live trading is disabled
+PASS    FUTURES_LEVERAGE_INVALID        spot mode
+PASS    EXCHANGE_TESTNET_REQUIRED       exchange mode is simulator or testnet
+PASS    DB_PATH_READY   SQLite path is ready
+PASS    LOG_PATH_READY  log path is writable
+PASS    DOCKER_VOLUMES_READY    compose named volumes are configured
+PASS    NOTIFIER_DRY_RUN_READY  notifier dry-run path is configured
+PASS    PAIR_CONFIG_VALID       pair config passed
+PASS    RECONCILIATION_READY    startup reconciliation is not required
+migration_plan=database
+database=tests/fixtures/db/v0.sqlite
+current_version=0
+target_version=1
+apply=false
+step=create schema_versions table
+step=record schema version 1
+step=set SQLite user_version 1
+migration_plan=config
+config=tests/fixtures/config/v0-config.yaml
+current_schema_version=0
+target_schema_version=1
+apply=false
+step=schema_version 0 -> 1
+step=rename paper to paper_run
+restore_plan=backup
+archive=.omo/evidence/final-backup.zip
+apply=false
+manifest_valid=true
+step=restore config.json
+step=restore database.json
+step=restore docker.json
+step=restore logs.json
+step=restore profile.json
+step=restore strategy.json
+reconciliation=exchange
+apply=false
+trading_halted=false
+mismatch_count=0
+PASS preflight and mutation-capable maintenance commands expose dry-run/preview
+paths
+
+## pairlist and deterministic simulator
+PASS rejected_pairs=5
+PASS simulator output is deterministic for the same scenario seed
+
+## source file size
+PASS all Python source/test files are <=250 pure LOC
+
+## final verdict
+PASS scope fidelity checks passed
+
+## residue port
+State   Recv-Q   Send-Q     Local Address:Port     Peer Address:Port  Process
+
+## compose ps
+NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS
+
+exit_code=0
+
+
+cleanup: tmux kill-session ulw-qa-f3f4; session_removed=1; port_18080_header_lines=1; compose_ps_checked=true

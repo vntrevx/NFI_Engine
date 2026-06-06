@@ -1,0 +1,80 @@
+name: nfi-engine
+
+services:
+  api:
+    build:
+      context: .
+    image: nfi-engine:local
+    command:
+      - nfi-engine
+      - serve
+      - --config
+      - /app/examples/futures-paper.yaml
+      - --host
+      - 0.0.0.0
+      - --port
+      - "18080"
+    env_file:
+      - examples/docker.env.example
+    environment:
+      NFI_ENGINE_ALLOW_CONTAINER_BIND: "1"
+      NFI_ENGINE_API_TOKEN: ${NFI_ENGINE_API_TOKEN:-change-me-local-only}
+      NFI_ENGINE_CONFIG: /app/examples/futures-paper.yaml
+    ports:
+      - "127.0.0.1:18080:18080"
+    volumes:
+      - nfi-data:/data
+      - nfi-logs:/logs
+      - nfi-config:/config
+      - ./examples:/app/examples:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/api/v1/ping', timeout=2).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  cli:
+    build:
+      context: .
+    image: nfi-engine:local
+    command:
+      - nfi-engine
+      - --help
+    env_file:
+      - examples/docker.env.example
+    volumes:
+      - nfi-data:/data
+      - nfi-logs:/logs
+      - nfi-config:/config
+      - ./examples:/app/examples:ro
+
+  paper:
+    build:
+      context: .
+    image: nfi-engine:local
+    profiles: ["paper"]
+    command:
+      - nfi-engine
+      - paper-run
+      - --config
+      - /app/examples/futures-paper.yaml
+      - --ticks
+      - /app/tests/fixtures/ticks/btc_usdt_futures.jsonl
+      - --max-events
+      - "25"
+    env_file:
+      - examples/docker.env.example
+    volumes:
+      - nfi-data:/data
+      - nfi-logs:/logs
+      - nfi-config:/config
+      - ./examples:/app/examples:ro
+      - ./tests/fixtures:/app/tests/fixtures:ro
+
+volumes:
+  nfi-data:
+  nfi-logs:
+  nfi-config:

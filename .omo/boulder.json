@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "active_work_id": null,
+  "works": {
+    "nfi-engine-m1": {
+      "work_id": "nfi-engine-m1",
+      "active_plan": ".omo/plans/nfi-engine.md",
+      "plan_name": "nfi-engine",
+      "session_ids": ["codex:nfi-engine-m1-root"],
+      "status": "completed",
+      "worktree_path": null
+    }
+  }
+}

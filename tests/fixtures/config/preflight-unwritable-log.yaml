@@ -1,0 +1,11 @@
+engine:
+  environment: local
+  live_trading: false
+  live_trading_confirmed: false
+exchange:
+  name: simulator
+  trading_mode: spot
+  testnet: true
+notifications:
+  enabled: true
+  jsonl_path: /proc/nfi-engine/events.jsonl

@@ -1,0 +1,20 @@
+engine:
+  environment: local
+  live_trading: false
+  live_trading_confirmed: false
+exchange:
+  name: simulator
+  trading_mode: spot
+  testnet: true
+circuit_breakers:
+  enabled: true
+  max_daily_loss_usdt: "10"
+  max_drawdown_pct: "0.10"
+  max_consecutive_losses: 3
+  max_stale_seconds: 60
+  max_api_errors: 5
+  max_slippage_pct: "0.03"
+  max_abs_funding_rate: "0.01"
+  manual_halt: false
+  max_rejected_orders: 3
+  emergency_exit_enabled: false

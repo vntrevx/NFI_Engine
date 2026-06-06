@@ -1,0 +1,7 @@
+engine:
+  environment: local
+exchange:
+  trading_mode: spot
+plugins:
+  enabled: false
+  roots: tests/fixtures/plugins/duplicate-a,tests/fixtures/plugins/duplicate-b

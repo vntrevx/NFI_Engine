@@ -1,0 +1,4 @@
+engine:
+  live_trading: true
+exchange:
+  trading_mode: spot

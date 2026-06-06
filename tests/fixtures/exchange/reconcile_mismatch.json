@@ -1,0 +1,95 @@
+{
+  "local": {
+    "open_orders": [
+      {
+        "order_id": "local-only",
+        "pair": "BTC/USDT:USDT",
+        "state": "open",
+        "pending_cancel": true
+      },
+      {
+        "order_id": "cancel-pending",
+        "pair": "ETH/USDT:USDT",
+        "state": "open",
+        "pending_cancel": true
+      }
+    ],
+    "closed_orders": [
+      {
+        "order_id": "local-fill-missing",
+        "pair": "BTC/USDT:USDT",
+        "state": "filled",
+        "pending_cancel": false
+      }
+    ],
+    "positions": [
+      {
+        "pair": "BTC/USDT:USDT",
+        "side": "long",
+        "quantity": "0.10",
+        "leverage": "2",
+        "margin_mode": "isolated"
+      }
+    ],
+    "balances": [
+      {
+        "asset": "USDT",
+        "total": "1000",
+        "available": "900"
+      }
+    ],
+    "trades": [
+      {
+        "trade_id": "duplicate-trade"
+      },
+      {
+        "trade_id": "duplicate-trade"
+      }
+    ],
+    "locks": [
+      {
+        "name": "BTC/USDT:USDT",
+        "stale": true
+      }
+    ]
+  },
+  "exchange": {
+    "open_orders": [
+      {
+        "order_id": "exchange-only",
+        "pair": "BTC/USDT:USDT",
+        "state": "open",
+        "pending_cancel": false
+      },
+      {
+        "order_id": "cancel-pending",
+        "pair": "ETH/USDT:USDT",
+        "state": "open",
+        "pending_cancel": false
+      }
+    ],
+    "closed_orders": [],
+    "positions": [
+      {
+        "pair": "BTC/USDT:USDT",
+        "side": "long",
+        "quantity": "0.20",
+        "leverage": "3",
+        "margin_mode": "cross"
+      }
+    ],
+    "balances": [
+      {
+        "asset": "USDT",
+        "total": "850",
+        "available": "750"
+      }
+    ],
+    "trades": [
+      {
+        "trade_id": "exchange-trade"
+      }
+    ],
+    "locks": []
+  }
+}

@@ -1,0 +1,1 @@
+{"at":"2026-01-01T00:00:00Z","severity":"ERROR","code":"CONFIG_VALIDATION_ERROR","correlation_id":"corr-config-fixture","command":"config validate","route":null,"safe_summary":"config validation failed for frontend editable field","report_hint":"attach redacted config and this event file"}

@@ -1,0 +1,14 @@
+engine:
+  environment: local
+  live_trading: false
+  live_trading_confirmed: false
+exchange:
+  name: simulator
+  trading_mode: spot
+  testnet: true
+notifications:
+  enabled: true
+  jsonl_path: .omo/evidence/task-20-notify.jsonl
+  webhook_url: http://127.0.0.1:9/notify
+  timeout_seconds: "0.001"
+  max_attempts: 1

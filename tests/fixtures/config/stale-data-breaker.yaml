@@ -1,0 +1,32 @@
+engine:
+  environment: local
+  live_trading: false
+  live_trading_confirmed: false
+exchange:
+  name: bybit
+  trading_mode: futures
+  margin_mode: isolated
+  testnet: true
+risk:
+  stake_usdt: "10"
+  max_daily_loss_pct: "0.05"
+  leverage: "2"
+  max_leverage: "3"
+  liquidation_buffer: "0.05"
+  max_open_trades: "3"
+  stoploss_pct: "0.10"
+  minimal_roi: "0.03"
+  cooldown_seconds: 0
+  locked_pairs: ""
+circuit_breakers:
+  enabled: true
+  max_daily_loss_usdt: "50"
+  max_drawdown_pct: "0.10"
+  max_consecutive_losses: 3
+  max_stale_seconds: 60
+  max_api_errors: 5
+  max_slippage_pct: "0.03"
+  max_abs_funding_rate: "0.01"
+  manual_halt: false
+  max_rejected_orders: 3
+  emergency_exit_enabled: false

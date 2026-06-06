@@ -1,0 +1,8 @@
+{
+  "name": "future-engine-plugin",
+  "group": "strategy",
+  "version": "0.1.0",
+  "engine_min_version": "999.0.0",
+  "entrypoint": "tests.fixtures.plugins.future:Plugin",
+  "description": "requires a future engine version"
+}

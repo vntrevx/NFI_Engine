@@ -1,0 +1,7 @@
+engine:
+  environment: local
+exchange:
+  trading_mode: spot
+plugins:
+  enabled: true
+  roots: tests/fixtures/plugins/incompatible

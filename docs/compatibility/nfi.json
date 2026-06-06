@@ -1,0 +1,11 @@
+{
+  "checked_at": "2026-06-06",
+  "full_x7_parity": false,
+  "notes": [
+    "Clean-room interface smoke target only.",
+    "Upstream strategy source is not vendored.",
+    "Full X7 parity requires a later callback-by-callback evidence run."
+  ],
+  "upstream_repo": "iterativv/NostalgiaForInfinity",
+  "upstream_sha": "4de91e1928f6203694733ffb9899023ef62fd7fc"
+}

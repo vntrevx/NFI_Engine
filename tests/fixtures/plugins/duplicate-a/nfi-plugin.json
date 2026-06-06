@@ -1,0 +1,8 @@
+{
+  "name": "duplicate-fixture",
+  "group": "data",
+  "version": "0.1.0",
+  "engine_min_version": "0.1.0",
+  "entrypoint": "tests.fixtures.plugins.duplicate_a:Plugin",
+  "description": "duplicate fixture A"
+}

@@ -1,0 +1,17 @@
+name: exchange-reject
+seed: 13
+pair: BTC/USDT:USDT
+side: long
+order_type: market
+quantity: "1"
+reference_price: "100"
+partial_fill_ratio: "1"
+latency_ms: 0
+fee_model: maker
+maker_fee_rate: "0.0002"
+taker_fee_rate: "0.0006"
+funding_rate: "0"
+slippage_pct: "0"
+slippage_anomaly_threshold_pct: "0.03"
+exchange_reject: true
+liquidation_near_miss: false

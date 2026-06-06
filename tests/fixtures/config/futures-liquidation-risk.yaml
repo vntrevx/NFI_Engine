@@ -1,0 +1,30 @@
+engine:
+  environment: local
+  live_trading: false
+  live_trading_confirmed: false
+exchange:
+  name: bybit
+  trading_mode: futures
+  margin_mode: isolated
+  testnet: true
+strategy:
+  name: ShortExitStrategy
+  module: tests.fixtures.strategies.backtest_cases:ShortExitStrategy
+risk:
+  stake_usdt: "10"
+  max_daily_loss_pct: "0.05"
+  leverage: "20"
+  max_leverage: "20"
+  liquidation_buffer: "0.03"
+  max_open_trades: "1"
+  stoploss_pct: "0.10"
+  minimal_roi: "0.03"
+  cooldown_seconds: 0
+  locked_pairs: ""
+backtest:
+  timerange: null
+  starting_balance_usdt: "1000"
+  stoploss_pct: "0.10"
+  fee_rate: "0"
+  slippage_rate: "0"
+  max_open_trades: "1"
