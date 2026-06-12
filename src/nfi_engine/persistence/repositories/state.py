@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -40,6 +41,19 @@ class LockRepository:
             return None
         return _lock_record(row)
 
+    async def list_active(self, *, now: datetime, limit: int) -> tuple[LockRecord, ...]:
+        if limit <= 0:
+            return ()
+        rows = (
+            await self._session.scalars(
+                select(LockRow)
+                .where(LockRow.expires_at > datetime_to_storage(now))
+                .order_by(LockRow.expires_at.asc())
+                .limit(limit),
+            )
+        ).all()
+        return tuple(_lock_record(row) for row in rows)
+
 
 class EquitySnapshotRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -49,6 +63,8 @@ class EquitySnapshotRepository:
         self._session.add(_equity_snapshot_row(record))
 
     async def list_recent(self, *, limit: int) -> tuple[EquitySnapshotRecord, ...]:
+        if limit <= 0:
+            return ()
         rows = (
             await self._session.scalars(
                 select(EquitySnapshotRow)

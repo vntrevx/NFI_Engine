@@ -105,9 +105,21 @@ class ApiConfigResponse(StrictApiModel):
     csrf_enabled: bool
 
 
+class RiskConfigResponse(StrictApiModel):
+    stake_usdt: Decimal
+    max_open_trades: int
+
+
+class UiConfigResponse(StrictApiModel):
+    locale: str
+    read_only: bool
+
+
 class ConfigCurrentResponse(StrictApiModel):
     engine: EngineConfigResponse
     exchange: ExchangeConfigResponse
+    risk: RiskConfigResponse
+    ui: UiConfigResponse
     api: ApiConfigResponse
 
 
@@ -133,6 +145,15 @@ class ConfigValidationResponse(StrictApiModel):
 class ConfigApplyResponse(StrictApiModel):
     applied: bool
     restart_required: bool
+    errors: tuple[str, ...] = ()
+    next_action: str | None = None
+
+
+class SetupPreviewResponse(StrictApiModel):
+    valid: bool
+    errors: tuple[str, ...]
+    redacted_config: ConfigCurrentResponse | None
+    config_preview: str
 
 
 class LogEntryResponse(StrictApiModel):
@@ -210,6 +231,14 @@ def config_current_response(settings: RuntimeSettings) -> ConfigCurrentResponse:
             testnet=settings.exchange.testnet,
             api_key=REDACTED,
             api_secret=REDACTED,
+        ),
+        risk=RiskConfigResponse(
+            stake_usdt=settings.risk.stake_usdt,
+            max_open_trades=settings.risk.max_open_trades,
+        ),
+        ui=UiConfigResponse(
+            locale=settings.ui.locale.value,
+            read_only=settings.ui.read_only,
         ),
         api=ApiConfigResponse(
             host=settings.api.host,

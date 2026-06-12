@@ -4,6 +4,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from nfi_engine.domain import OrderState, OrderType, PositionSide, TradeState
 from nfi_engine.persistence.converters import (
     datetime_from_storage,
@@ -30,6 +32,29 @@ class TradeRepository:
         if row is None:
             return None
         return _trade_record(row)
+
+    async def list_recent(self, *, limit: int) -> tuple[TradeRecord, ...]:
+        if limit <= 0:
+            return ()
+        rows = (
+            await self._session.scalars(
+                select(TradeRow).order_by(TradeRow.opened_at.desc()).limit(limit),
+            )
+        ).all()
+        return tuple(_trade_record(row) for row in rows)
+
+    async def list_open(self, *, limit: int) -> tuple[TradeRecord, ...]:
+        if limit <= 0:
+            return ()
+        rows = (
+            await self._session.scalars(
+                select(TradeRow)
+                .where(TradeRow.state == TradeState.OPEN.value)
+                .order_by(TradeRow.opened_at.desc())
+                .limit(limit),
+            )
+        ).all()
+        return tuple(_trade_record(row) for row in rows)
 
     async def update_state(
         self,
@@ -62,6 +87,37 @@ class OrderRepository:
             return None
         return _order_record(row)
 
+    async def list_recent(self, *, limit: int) -> tuple[OrderRecord, ...]:
+        if limit <= 0:
+            return ()
+        rows = (
+            await self._session.scalars(
+                select(OrderRow).order_by(OrderRow.created_at.desc()).limit(limit),
+            )
+        ).all()
+        return tuple(_order_record(row) for row in rows)
+
+    async def list_open(self, *, limit: int) -> tuple[OrderRecord, ...]:
+        if limit <= 0:
+            return ()
+        rows = (
+            await self._session.scalars(
+                select(OrderRow)
+                .where(
+                    OrderRow.state.in_(
+                        (
+                            OrderState.CREATED.value,
+                            OrderState.OPEN.value,
+                            OrderState.PARTIALLY_FILLED.value,
+                        ),
+                    ),
+                )
+                .order_by(OrderRow.created_at.desc())
+                .limit(limit),
+            )
+        ).all()
+        return tuple(_order_record(row) for row in rows)
+
     async def update_state(self, order_id: str, state: OrderState) -> None:
         row = await self._session.get(OrderRow, order_id)
         if row is not None:
@@ -80,6 +136,19 @@ class PositionRepository:
         if row is None:
             return None
         return _position_record(row)
+
+    async def list_open(self, *, limit: int) -> tuple[PositionRecord, ...]:
+        if limit <= 0:
+            return ()
+        rows = (
+            await self._session.scalars(
+                select(PositionRow)
+                .where(PositionRow.state == TradeState.OPEN.value)
+                .order_by(PositionRow.updated_at.desc())
+                .limit(limit),
+            )
+        ).all()
+        return tuple(_position_record(row) for row in rows)
 
     async def update_state(self, position_id: str, state: TradeState) -> None:
         row = await self._session.get(PositionRow, position_id)

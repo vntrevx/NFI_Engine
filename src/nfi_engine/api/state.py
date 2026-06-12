@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import assert_never
+from typing import TYPE_CHECKING, assert_never
 
 from nfi_engine.config import RuntimeSettings
 from nfi_engine.paper import BotCommand, BotState, apply_bot_command
+
+if TYPE_CHECKING:
+    from nfi_engine.dashboard import DashboardReadStore
 
 
 @dataclass(slots=True)
@@ -25,7 +28,8 @@ class ApiRuntimeState:
         return self.state
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ApiContext:
     settings: RuntimeSettings
     runtime: ApiRuntimeState
+    dashboard_store: DashboardReadStore

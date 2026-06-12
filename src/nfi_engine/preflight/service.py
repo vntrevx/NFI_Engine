@@ -21,7 +21,7 @@ from nfi_engine.profiles import ProfileError, get_operator_profile
 SQLITE_PREFIX: Final = "sqlite+aiosqlite:///"
 LOCAL_API_HOST: Final = "127.0.0.1"
 FUTURES_LEVERAGE_CEILING: Final = Decimal(10)
-REQUIRED_COMPOSE_VOLUMES: Final = ("nfi-data", "nfi-logs", "nfi-config")
+REQUIRED_COMPOSE_VOLUMES: Final = ("nfi-data", "nfi-logs")
 
 
 def run_preflight_for_config(*, config_path: Path, profile_name: str) -> PreflightReport:

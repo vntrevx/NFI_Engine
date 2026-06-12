@@ -7,6 +7,7 @@ import pytest
 from nfi_engine.config import (
     ConfigErrorCode,
     ConfigLoadError,
+    FieldGroup,
     FieldMetadata,
     frontend_metadata,
     load_runtime_settings,
@@ -155,6 +156,23 @@ def test_frontend_metadata_marks_safe_sensitive_and_restart_fields() -> None:
     assert risk_stake.runtime_apply_safe is True
     assert exchange_key.sensitive is True
     assert api_host.restart_required is True
+
+
+def test_frontend_metadata_marks_simple_mode_fields() -> None:
+    # Given
+    metadata = frontend_metadata()
+
+    # When
+    exchange_name = _find_metadata(metadata, "exchange.name")
+    stake = _find_metadata(metadata, "risk.stake_usdt")
+    locale = _find_metadata(metadata, "ui.locale")
+    advanced = _find_metadata(metadata, "notifications.max_attempts")
+
+    # Then
+    assert exchange_name.ui_group is FieldGroup.SIMPLE
+    assert stake.ui_group is FieldGroup.SIMPLE
+    assert locale.ui_group is FieldGroup.SIMPLE
+    assert advanced.ui_group is FieldGroup.ADVANCED
 
 
 def _write_config(tmp_path: Path, lines: tuple[str, ...]) -> Path:

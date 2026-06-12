@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from nfi_engine.api.config_edit import check_config_patch
+from nfi_engine.api.config_edit import apply_runtime_config_patch, check_config_patch
 from nfi_engine.api.models import (
     ConfigApplyResponse,
     ConfigCurrentResponse,
@@ -35,7 +35,7 @@ def add_config_routes(
     read_router.add_api_route("/config/validate", _config_validate, methods=["POST"])
     write_router.add_api_route("/reload_config", _config_validate, methods=["POST"])
     write_router.add_api_route("/config/draft", _config_draft, methods=["POST"])
-    write_router.add_api_route("/config/apply", _config_apply, methods=["POST"])
+    write_router.add_api_route("/config/apply", _config_apply(context), methods=["POST"])
 
 
 def _config_current(context: ApiContext) -> Callable[[], ConfigCurrentResponse]:
@@ -71,7 +71,29 @@ def _config_validate(request: ConfigMutationRequest | None = None) -> ConfigVali
     return ConfigValidationResponse(valid=check.valid, errors=check.errors)
 
 
-def _config_apply(request: ConfigMutationRequest | None = None) -> ConfigApplyResponse:
-    fields = () if request is None else request.fields
-    check = check_config_patch(fields)
-    return ConfigApplyResponse(applied=check.valid, restart_required=check.restart_required)
+def _config_apply(
+    context: ApiContext,
+) -> Callable[[ConfigMutationRequest | None], ConfigApplyResponse]:
+    def endpoint(request: ConfigMutationRequest | None = None) -> ConfigApplyResponse:
+        fields = () if request is None else request.fields
+        check = check_config_patch(fields)
+        if not check.valid:
+            return ConfigApplyResponse(
+                applied=False,
+                restart_required=check.restart_required,
+                errors=check.errors,
+                next_action="Fix the invalid setting values and retry.",
+            )
+        if check.restart_required:
+            return ConfigApplyResponse(
+                applied=False,
+                restart_required=True,
+                errors=tuple(
+                    f"{path} requires restart before it can apply" for path in check.restart_paths
+                ),
+                next_action="Save the draft, then restart NFI Engine.",
+            )
+        context.settings = apply_runtime_config_patch(context.settings, fields)
+        return ConfigApplyResponse(applied=True, restart_required=False)
+
+    return endpoint

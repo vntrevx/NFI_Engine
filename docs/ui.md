@@ -4,12 +4,59 @@ The milestone 1 console is a local FastAPI-served operator surface at
 `/settings` and `/logs`. It is built for simple configuration and diagnostics,
 not public analytics.
 
+Milestone 2 expands this into an original operator command center. The home
+surface should show setup readiness, safety state, dashboard snapshots, local
+chart status, recent errors, and support actions without imitating FreqUI.
+
+## Home
+
+`/` is the first operator screen. It shows runtime state, exchange mode,
+open-trade and PnL placeholders, setup readiness, safety blocking reasons, a
+pairlist preview, recent error codes, and a support report shortcut.
+
+First-run operators should be able to decide three things from Home without
+opening YAML:
+
+- whether setup is complete enough to run paper or testnet workflows
+- whether safety gates are blocking a live-risk action
+- whether recent errors need a support report
+
+## Language Selector
+
+The console supports English, Korean, and Greek. M2 keeps language selection
+explicit through config or supported route/session controls; it does not guess
+from browser locale. Machine codes, audit event IDs, and API contract tokens
+remain untranslated so support reports stay searchable.
+
+## Dashboard Chart
+
+The home chart is a local canvas renderer with no external chart library. It
+polls `GET /api/v1/dashboard/snapshot` every 5 seconds, aborts a refresh after
+2.5 seconds, and marks the chart stale after 15 seconds without a successful
+snapshot. The footer reports render time and response payload bytes so local QA
+can catch wasteful polling or payload growth early.
+
+Expected states:
+
+- `loading`: a snapshot request is in flight
+- `ready`: at least one price or equity point rendered
+- `empty`: the snapshot is valid but has no chart points yet
+- `stale`: previous data exists but refreshes are no longer current
+- `error`: no usable snapshot could be rendered
+
 ## Settings
 
 `/settings` renders editable fields from config metadata, hides sensitive
 fields, blocks live-trading controls, and sends typed field patches to the API.
 Runtime-safe fields can be validated, saved as a draft, and applied without
 editing raw YAML.
+
+Simple Mode is the default first-run editing surface. It keeps exchange, trading
+mode, paper/testnet intent, stake sizing, risk preset, locale, and write-only
+credential entry visible. The setup preview uses `/api/v1/setup/preview` and
+returns redacted config text; credential values are not written into HTML values,
+browser storage, logs, or support reports. Advanced Mode stays collapsed for
+later tuning.
 
 Useful flows:
 
@@ -83,3 +130,5 @@ operator hint.
 - No external CDN assets.
 - No broad trading dashboard in M1.
 - No live-money controls.
+- M2 dashboard work must keep its own navigation, layout, text, and chart
+  treatment; Freqtrade is only a behavior reference.

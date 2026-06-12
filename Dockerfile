@@ -15,7 +15,7 @@ LABEL org.opencontainers.image.title="nfi-engine"
 LABEL org.opencontainers.image.description="Local-safe NFI Engine paper trading runtime"
 LABEL org.opencontainers.image.source="https://local/nfi-engine"
 
-ENV NFI_ENGINE_CONFIG=/app/examples/futures-paper.yaml
+ENV NFI_ENGINE_CONFIG=/config/futures-paper.yaml
 ENV NFI_ENGINE_API_TOKEN=change-me-local-only
 ENV PATH="/app/.venv/bin:${PATH}"
 ENV PYTHONUNBUFFERED=1
@@ -34,4 +34,4 @@ VOLUME ["/config", "/data", "/logs"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/api/v1/ping', timeout=2).read()" || exit 1
 
-CMD ["nfi-engine", "serve", "--config", "/app/examples/futures-paper.yaml"]
+CMD ["nfi-engine", "serve", "--config", "/config/futures-paper.yaml"]

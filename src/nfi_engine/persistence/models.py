@@ -14,8 +14,8 @@ class TradeRow(Base):
     trade_id: Mapped[str] = mapped_column(String(80), primary_key=True)
     pair: Mapped[str] = mapped_column(String(40), nullable=False)
     side: Mapped[str] = mapped_column(String(16), nullable=False)
-    state: Mapped[str] = mapped_column(String(32), nullable=False)
-    opened_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    opened_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     closed_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
     entry_price: Mapped[str] = mapped_column(String(80), nullable=False)
     exit_price: Mapped[str | None] = mapped_column(String(80), nullable=True)
@@ -32,10 +32,10 @@ class OrderRow(Base):
     pair: Mapped[str] = mapped_column(String(40), nullable=False)
     side: Mapped[str] = mapped_column(String(16), nullable=False)
     order_type: Mapped[str] = mapped_column(String(16), nullable=False)
-    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     price: Mapped[str] = mapped_column(String(80), nullable=False)
     quantity: Mapped[str] = mapped_column(String(80), nullable=False)
-    created_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
 
 
 class PositionRow(Base):
@@ -45,11 +45,11 @@ class PositionRow(Base):
     trade_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     pair: Mapped[str] = mapped_column(String(40), nullable=False)
     side: Mapped[str] = mapped_column(String(16), nullable=False)
-    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     quantity: Mapped[str] = mapped_column(String(80), nullable=False)
     entry_price: Mapped[str] = mapped_column(String(80), nullable=False)
     leverage: Mapped[str] = mapped_column(String(80), nullable=False)
-    updated_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    updated_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
 
 
 class LockRow(Base):

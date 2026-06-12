@@ -20,3 +20,10 @@ class LogLevel(StrEnum):
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
+
+
+@unique
+class Locale(StrEnum):
+    EN = "en"
+    KO = "ko"
+    EL = "el"

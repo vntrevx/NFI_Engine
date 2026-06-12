@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from nfi_engine.persistence.models import Base
 
@@ -32,7 +33,11 @@ class PersistenceDatabase:
 
 def create_persistence_database(database_url: str) -> PersistenceDatabase:
     _ensure_sqlite_parent(database_url)
-    engine = create_async_engine(database_url, future=True)
+    engine = create_async_engine(
+        database_url,
+        future=True,
+        poolclass=None if database_url.endswith(":memory:") else NullPool,
+    )
     session = async_sessionmaker(engine, expire_on_commit=False)
     return PersistenceDatabase(database_url=database_url, engine=engine, session=session)
 

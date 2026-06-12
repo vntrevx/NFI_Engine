@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Final, NoReturn
@@ -26,14 +27,22 @@ READONLY_AUDIT_EVENT: Final = "READONLY_ACTION_BLOCKED"
 
 @dataclass(frozen=True, slots=True)
 class SecurityContext:
-    settings: RuntimeSettings
+    _settings_provider: Callable[[], RuntimeSettings]
     authenticator: OperatorAuthenticator
     store: SecuritySessionStore
 
     @classmethod
     def from_settings(cls, settings: RuntimeSettings) -> SecurityContext:
+        return cls.from_settings_provider(lambda: settings)
+
+    @classmethod
+    def from_settings_provider(
+        cls,
+        settings_provider: Callable[[], RuntimeSettings],
+    ) -> SecurityContext:
+        settings = settings_provider()
         return cls(
-            settings=settings,
+            _settings_provider=settings_provider,
             authenticator=OperatorAuthenticator(
                 token=settings.api.auth_token,
                 anonymous_allowed=(
@@ -43,6 +52,10 @@ class SecurityContext:
             ),
             store=SecuritySessionStore(),
         )
+
+    @property
+    def settings(self) -> RuntimeSettings:
+        return self._settings_provider()
 
     @property
     def operator_role(self) -> OperatorRole:

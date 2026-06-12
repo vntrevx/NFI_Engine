@@ -88,6 +88,8 @@ unfixable = []
     "S603",
     "SLF001",
 ]
+"src/nfi_engine/cli_benchmark.py" = ["PLR0913"]
+"src/nfi_engine/cli_setup.py" = ["PLR0913"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

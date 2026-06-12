@@ -19,6 +19,7 @@ def test_cli_help_lists_operator_commands() -> None:
     assert result.returncode == 0, result.stderr
     for command_name in (
         "config",
+        "benchmark",
         "strategy",
         "data",
         "exchange",
@@ -26,6 +27,7 @@ def test_cli_help_lists_operator_commands() -> None:
         "backtest",
         "paper-run",
         "serve",
+        "setup",
     ):
         assert command_name in result.stdout
 

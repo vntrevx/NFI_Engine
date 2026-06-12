@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response, WebSocket, status
@@ -9,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from nfi_engine.api.auth import OperatorIdentity
 from nfi_engine.api.config_routes import add_config_routes
+from nfi_engine.api.dashboard_routes import add_dashboard_routes
 from nfi_engine.api.log_lookup import error_lookup_response
 from nfi_engine.api.models import (
     BackupRestoreResponse,
@@ -32,10 +32,13 @@ from nfi_engine.api.models import (
 from nfi_engine.api.pairlist_routes import add_pairlist_routes
 from nfi_engine.api.security import SecurityContext
 from nfi_engine.api.security_routes import add_security_audit_route, add_security_routes
+from nfi_engine.api.setup_routes import add_setup_routes
 from nfi_engine.api.state import ApiContext
 from nfi_engine.api.support_bundle import support_bundle_zip
 from nfi_engine.config import LogLevel
+from nfi_engine.dashboard import summarize_dashboard_read_models
 from nfi_engine.paper import BotCommand
+from nfi_engine.preflight.models import PreflightReport
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -45,6 +48,7 @@ def build_api_router(
     *,
     logs: tuple[LogEntryResponse, ...],
     security: SecurityContext,
+    readiness: PreflightReport,
 ) -> APIRouter:
     def require_operator(
         request: Request,
@@ -91,12 +95,14 @@ def build_api_router(
         methods=["POST"],
     )
     protected_router.add_api_route("/status", _status(context), methods=["GET"])
-    protected_router.add_api_route("/profit", _profit, methods=["GET"])
-    protected_router.add_api_route("/trades", _trades, methods=["GET"])
+    protected_router.add_api_route("/profit", _profit(context), methods=["GET"])
+    protected_router.add_api_route("/trades", _trades(context), methods=["GET"])
     protected_router.add_api_route("/locks", _locks, methods=["GET"])
+    add_dashboard_routes(protected_router, context=context, logs=logs, readiness=readiness)
     protected_router.add_api_route("/strategies", _strategies(context), methods=["GET"])
     protected_router.add_api_route("/strategy/{name}", _strategy_detail(context), methods=["GET"])
     protected_router.add_api_route("/pair_history", _pair_history, methods=["GET"])
+    add_setup_routes(protected_router)
     add_pairlist_routes(read_router=protected_router, write_router=write_router, context=context)
     add_config_routes(read_router=protected_router, write_router=write_router, context=context)
     write_router.add_api_route("/backup/restore", _backup_restore, methods=["POST"])
@@ -138,30 +144,53 @@ def _state_command(context: ApiContext, command: BotCommand) -> Callable[[], Sta
     return endpoint
 
 
-def _status(context: ApiContext) -> Callable[[], StatusResponse]:
-    def endpoint() -> StatusResponse:
+def _status(context: ApiContext) -> Callable[[], Awaitable[StatusResponse]]:
+    async def endpoint() -> StatusResponse:
+        read_models = await context.dashboard_store.read_models()
+        summary = summarize_dashboard_read_models(read_models)
         return StatusResponse(
             state=context.runtime.state,
             trading_mode=context.settings.exchange.trading_mode.value,
             exchange=context.settings.exchange.name,
             live_orders=False,
-            open_trades=0,
-            pair_count=1,
+            open_trades=summary.open_trades,
+            pair_count=_pair_count(context),
         )
 
     return endpoint
 
 
-def _profit() -> ProfitResponse:
-    return ProfitResponse(total_profit=Decimal(0), closed_trades=0)
+def _profit(context: ApiContext) -> Callable[[], Awaitable[ProfitResponse]]:
+    async def endpoint() -> ProfitResponse:
+        read_models = await context.dashboard_store.read_models()
+        summary = summarize_dashboard_read_models(read_models)
+        return ProfitResponse(
+            total_profit=summary.session_profit,
+            closed_trades=summary.closed_trades,
+        )
+
+    return endpoint
 
 
-def _trades() -> TradeListResponse:
-    return TradeListResponse(items=())
+def _trades(context: ApiContext) -> Callable[[], Awaitable[TradeListResponse]]:
+    async def endpoint() -> TradeListResponse:
+        read_models = await context.dashboard_store.read_models()
+        summary = summarize_dashboard_read_models(read_models)
+        return TradeListResponse(items=summary.trade_ids)
+
+    return endpoint
 
 
 def _locks() -> LockListResponse:
     return LockListResponse(items=())
+
+
+def _pair_count(context: ApiContext) -> int:
+    return len(
+        tuple(
+            pair.strip() for pair in context.settings.pairlist.whitelist.split(",") if pair.strip()
+        ),
+    )
 
 
 def _strategies(context: ApiContext) -> Callable[[], StrategyListResponse]:

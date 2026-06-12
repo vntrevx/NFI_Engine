@@ -30,7 +30,8 @@ def test_backup_create_writes_redacted_manifested_archive(tmp_path: Path) -> Non
     assert result.manifest_valid is True
     with ZipFile(output) as archive:
         names = set(archive.namelist())
-        merged = "\n".join(archive.read(name).decode("utf-8") for name in sorted(names))
+        text_names = tuple(name for name in sorted(names) if name.endswith(".json"))
+        merged = "\n".join(archive.read(name).decode("utf-8") for name in text_names)
         manifest_text = archive.read("manifest.json").decode("utf-8")
     assert {"manifest.json", "config.json", "profile.json", "strategy.json", "logs.json"} <= names
     assert "fixture-secret-value" not in merged

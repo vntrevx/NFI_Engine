@@ -17,7 +17,16 @@ STYLE: Final = """
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: Aptos, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-family:
+    Aptos,
+    "Segoe UI",
+    "Noto Sans CJK KR",
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
   background: var(--bg);
   color: var(--ink);
 }
@@ -33,7 +42,34 @@ nav a {
   text-decoration: none;
   background: var(--panel);
 }
-.workspace { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; margin-top: 20px; }
+nav a[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
+.workspace {
+  display: grid;
+  grid-template-columns: 1.15fr .85fr;
+  gap: 18px;
+  margin-top: 20px;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.25fr .75fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+.metric {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  background: #fff;
+  min-width: 0;
+}
+.metric span { display: block; color: var(--muted); font-size: 12px; }
+.metric strong { display: block; margin-top: 5px; overflow-wrap: anywhere; }
 section {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -41,6 +77,9 @@ section {
   padding: 16px;
 }
 h2 { font-size: 15px; margin: 0 0 12px; letter-spacing: 0; }
+.settings-stack { display: grid; gap: 14px; margin-top: 18px; }
+.settings-group { border-top: 1px solid var(--line); padding-top: 14px; }
+.settings-group summary { cursor: pointer; font-size: 15px; font-weight: 700; }
 .field-grid { display: grid; grid-template-columns: minmax(170px, .55fr) 1fr 120px; gap: 10px; }
 .field-row { display: contents; }
 label, .field-note, th { font-size: 13px; color: var(--muted); }
@@ -58,6 +97,8 @@ button { cursor: pointer; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 button:disabled, input:disabled, select:disabled { opacity: .62; cursor: not-allowed; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.setup-preview { margin-bottom: 18px; }
+.setup-output { white-space: pre-wrap; overflow-wrap: anywhere; }
 .state, .audit, .lock {
   margin-top: 12px;
   border-left: 3px solid var(--accent);
@@ -69,144 +110,24 @@ button:disabled, input:disabled, select:disabled { opacity: .62; cursor: not-all
 .lock { border-left-color: var(--warn); background: #fff8e1; }
 .log-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .log-tools input { min-width: 260px; max-width: 100%; }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
+.table-scroll table { margin-top: 0; }
 th, td { border-bottom: 1px solid var(--line); padding: 9px 7px; text-align: left; }
 td { font-size: 13px; overflow-wrap: anywhere; }
+.logs-table { min-width: 680px; }
+.logs-table th:nth-child(1), .logs-table td:nth-child(1) { width: 132px; }
+.logs-table th:nth-child(2), .logs-table td:nth-child(2) { width: 72px; }
+.logs-table th:nth-child(3), .logs-table td:nth-child(3) { width: 158px; }
+.logs-table th:nth-child(4), .logs-table td:nth-child(4) { width: 180px; }
 .severity-error { color: var(--danger); font-weight: 700; }
 .detail { min-height: 92px; white-space: pre-line; }
 @media (max-width: 780px) {
   main { padding: 16px; }
   header, .workspace { display: block; }
+  .dashboard-grid, .status-strip { grid-template-columns: 1fr; }
   nav { margin-top: 12px; }
   section { margin-top: 14px; }
   .field-grid { grid-template-columns: 1fr; }
 }
-"""
-
-SETTINGS_SCRIPT: Final = """
-<script>
-const form = document.querySelector('[data-testid="settings-form"]');
-const validation = document.querySelector('[data-testid="validation-state"]');
-const draftState = document.querySelector('[data-testid="draft-state"]');
-const auditLog = document.querySelector('[data-testid="audit-log"]');
-function csrfHeaders() {
-  const token = document.querySelector('meta[name="nfi-csrf-token"]')?.content || '';
-  return token ? {'x-nfi-csrf-token': token} : {};
-}
-function fields() {
-  return Array.from(form.elements)
-    .filter((item) => item.name && !item.disabled)
-    .map((item) => ({
-      path: item.name,
-      value: item.type === 'checkbox' ? String(item.checked) : item.value
-    }));
-}
-async function postConfig(path) {
-  const response = await fetch(path, {
-    method: 'POST',
-    headers: {'content-type': 'application/json', ...csrfHeaders()},
-    body: JSON.stringify({fields: fields()})
-  });
-  if (!response.ok) {
-    return {valid: false, errors: [`HTTP ${response.status}`]};
-  }
-  return response.json();
-}
-document.querySelector('[data-testid="validate-button"]').onclick = async () => {
-  const payload = await postConfig('/api/v1/config/validate');
-  validation.textContent = payload.valid ? 'Validation passed' : payload.errors.join('; ');
-};
-document.querySelector('[data-testid="save-draft-button"]').onclick = async () => {
-  const payload = await postConfig('/api/v1/config/draft');
-  draftState.textContent = payload.accepted ? `Draft saved: ${payload.draft_id}` : 'Draft rejected';
-};
-document.querySelector('[data-testid="apply-button"]').onclick = async () => {
-  const payload = await postConfig('/api/v1/config/apply');
-  const mode = payload.restart_required ? 'reload required' : 'runtime applied';
-  auditLog.textContent = payload.applied ? `CONFIG_APPLIED ${mode}` : 'CONFIG_BLOCKED';
-};
-</script>
-"""
-
-PAIRLIST_SCRIPT: Final = (
-    "<script>\n"
-    "const pairlistBlacklist = document.querySelector('[data-testid=\"pairlist-blacklist\"]');\n"
-    "const pairlistPreview = document.querySelector('[data-testid=\"pairlist-preview-state\"]');\n"
-    "const pairlistAudit = document.querySelector('[data-testid=\"pairlist-audit-log\"]');\n"
-    "async function postPairlist(path) {\n"
-    "  const response = await fetch(path, {\n"
-    "    method: 'POST',\n"
-    "    headers: {'content-type': 'application/json', ...csrfHeaders()},\n"
-    "    body: JSON.stringify({blacklist: pairlistBlacklist.value})\n"
-    "  });\n"
-    "  return response.json();\n"
-    "}\n"
-    "function pairlistSummary(payload) {\n"
-    "  const rejected = payload.rejected_pairs.map((item) => "
-    "`${item.pair}: ${item.reasons.join(',')}`);\n"
-    "  const accepted = `accepted=${payload.accepted_pairs.join(',') || 'none'}`;\n"
-    "  return [accepted, ...rejected].join('\\n');\n"
-    "}\n"
-    "const pairlistPreviewButton = document.querySelector("
-    "'[data-testid=\"pairlist-preview-button\"]');\n"
-    "const pairlistDraftButton = document.querySelector("
-    "'[data-testid=\"pairlist-save-draft-button\"]');\n"
-    "const pairlistApplyButton = document.querySelector("
-    "'[data-testid=\"pairlist-apply-button\"]');\n"
-    "if (pairlistBlacklist) {\n"
-    "  pairlistPreviewButton.onclick = async () => {\n"
-    "    const payload = await postPairlist('/api/v1/pairlist/preview');\n"
-    "    pairlistPreview.textContent = pairlistSummary(payload);\n"
-    "  };\n"
-    "  pairlistDraftButton.onclick = async () => {\n"
-    "    const payload = await postPairlist('/api/v1/pairlist/draft');\n"
-    "    pairlistPreview.textContent = pairlistSummary(payload.preview);\n"
-    "    pairlistAudit.textContent = payload.audit_event;\n"
-    "  };\n"
-    "  pairlistApplyButton.onclick = async () => {\n"
-    "    const payload = await postPairlist('/api/v1/pairlist/apply');\n"
-    "    pairlistPreview.textContent = pairlistSummary(payload.preview);\n"
-    "    pairlistAudit.textContent = payload.audit_event;\n"
-    "  };\n"
-    "}\n"
-    "</script>\n"
-)
-
-LOGS_SCRIPT: Final = """
-<script>
-const rows = document.querySelector('[data-testid="log-rows"]');
-const detail = document.querySelector('[data-testid="error-detail"]');
-const severity = document.querySelector('[data-testid="severity-filter"]');
-const search = document.querySelector('[data-testid="error-search"]');
-const safe = (value) => String(value).replace(/[&<>]/g, (c) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;'
-}[c]));
-function renderLogs(items) {
-  rows.innerHTML = items.map((item) => `
-    <tr>
-      <td>${safe(item.at)}</td>
-      <td class="${item.level === 'ERROR' ? 'severity-error' : ''}">${safe(item.level)}</td>
-      <td>${safe(item.code)}</td>
-      <td data-testid="correlation-id">${safe(item.correlation_id)}</td>
-      <td>${safe(item.safe_summary)}</td>
-    </tr>`).join('');
-}
-severity.onchange = async () => {
-  const suffix = severity.value ? `?severity=${encodeURIComponent(severity.value)}` : '';
-  const response = await fetch(`/api/v1/logs/recent${suffix}`);
-  const payload = await response.json();
-  renderLogs(payload.items);
-};
-document.querySelector('[data-testid="lookup-button"]').onclick = async () => {
-  const code = encodeURIComponent(search.value || 'CONFIG_VALIDATION_ERROR');
-  const response = await fetch(`/api/v1/errors/${code}`);
-  const payload = await response.json();
-  detail.textContent = [
-    payload.code,
-    payload.message,
-    payload.correlation_id,
-    payload.report_hint
-  ].join('\\n');
-};
-</script>
 """

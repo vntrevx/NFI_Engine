@@ -7,7 +7,9 @@
 !*.env.example
 .omo/evidence
 .omo/
+.runtime
 .venv
+test-results
 __pycache__
 *.pyc
 *.pyo

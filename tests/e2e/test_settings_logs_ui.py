@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from nfi_engine.api.app import create_app
 from nfi_engine.api.models import (
     ConfigApplyResponse,
+    ConfigCurrentResponse,
     ConfigDraftResponse,
     ConfigValidationResponse,
     ErrorLookupResponse,
@@ -39,6 +40,14 @@ async def test_settings_ui_and_config_workflow_when_local_console_edits_safe_fie
             "/api/v1/config/validate",
             json={"fields": [{"path": "risk.max_open_trades", "value": "4"}]},
         )
+        invalid_locale = await client.post(
+            "/api/v1/config/validate",
+            json={"fields": [{"path": "ui.locale", "value": "jp"}]},
+        )
+        valid_locale = await client.post(
+            "/api/v1/config/validate",
+            json={"fields": [{"path": "ui.locale", "value": "ko"}]},
+        )
         draft = await client.post(
             "/api/v1/config/draft",
             headers=csrf_headers,
@@ -58,24 +67,129 @@ async def test_settings_ui_and_config_workflow_when_local_console_edits_safe_fie
     assert page.status_code == 200
     assert "text/html" in page.headers["content-type"]
     assert 'data-testid="settings-root"' in page.text
+    assert 'data-testid="simple-settings"' in page.text
+    assert 'data-testid="setup-preview-panel"' in page.text
+    assert 'data-testid="setup-preview-button"' in page.text
+    assert 'name="intent"' in page.text
+    assert 'name="risk_preset"' in page.text
+    assert 'name="api_key" type="password"' in page.text
+    assert 'name="api_secret" type="password"' in page.text
+    assert 'data-testid="advanced-settings"' in page.text
+    assert 'name="ui.locale"' in page.text
     assert 'name="risk.max_open_trades"' in page.text
+    assert 'data-testid="field-exchange.trading_mode" data-runtime-safe="false" disabled' in (
+        page.text
+    )
+    assert "/api/v1/config/current" in page.text
     assert "https://" not in page.text
     assert "cdn" not in page.text.lower()
     assert "raw yaml" not in page.text.lower()
 
     invalid_payload = ConfigValidationResponse.model_validate_json(invalid.content)
     valid_payload = ConfigValidationResponse.model_validate_json(valid.content)
+    invalid_locale_payload = ConfigValidationResponse.model_validate_json(invalid_locale.content)
+    valid_locale_payload = ConfigValidationResponse.model_validate_json(valid_locale.content)
     draft_payload = ConfigDraftResponse.model_validate_json(draft.content)
     applied_payload = ConfigApplyResponse.model_validate_json(applied.content)
     unsafe_payload = ConfigValidationResponse.model_validate_json(unsafe.content)
     assert invalid_payload.valid is False
     assert "risk.max_open_trades must be at least 1" in invalid_payload.errors
     assert valid_payload.valid is True
+    assert invalid_locale_payload.valid is False
+    assert "ui.locale must be en, ko, or el" in invalid_locale_payload.errors
+    assert valid_locale_payload.valid is True
     assert draft_payload.accepted is True
     assert applied_payload.applied is True
     assert applied_payload.restart_required is False
+    assert applied_payload.errors == ()
+    assert applied_payload.next_action is None
     assert unsafe_payload.valid is False
     assert "engine.live_trading is locked for milestone 1" in unsafe_payload.errors
+
+
+@pytest.mark.anyio
+async def test_config_apply_mutates_safe_fields_and_blocks_restart_fields() -> None:
+    # Given: a local console with a CSRF token from the settings page.
+    async with _client(create_app(settings=RuntimeSettings())) as client:
+        page = await client.get("/settings")
+        csrf_headers = _csrf_headers_from_page(page.text)
+
+        # When: a safe risk field, a restart-required field, and an invalid field are applied.
+        applied = await client.post(
+            "/api/v1/config/apply",
+            headers=csrf_headers,
+            json={"fields": [{"path": "risk.max_open_trades", "value": "4"}]},
+        )
+        current_after_apply = await client.get("/api/v1/config/current")
+        restart_required = await client.post(
+            "/api/v1/config/apply",
+            headers=csrf_headers,
+            json={"fields": [{"path": "exchange.name", "value": "binance"}]},
+        )
+        current_after_restart_required = await client.get("/api/v1/config/current")
+        invalid_apply = await client.post(
+            "/api/v1/config/apply",
+            headers=csrf_headers,
+            json={"fields": [{"path": "risk.max_open_trades", "value": "0"}]},
+        )
+
+    # Then: safe fields mutate runtime settings and restart-required fields stay pending.
+    applied_payload = ConfigApplyResponse.model_validate_json(applied.content)
+    current_payload = ConfigCurrentResponse.model_validate_json(current_after_apply.content)
+    restart_payload = ConfigApplyResponse.model_validate_json(restart_required.content)
+    restart_current_payload = ConfigCurrentResponse.model_validate_json(
+        current_after_restart_required.content,
+    )
+    invalid_apply_payload = ConfigApplyResponse.model_validate_json(invalid_apply.content)
+    assert applied_payload.applied is True
+    assert applied_payload.restart_required is False
+    assert current_payload.risk.max_open_trades == 4
+    assert restart_payload.applied is False
+    assert restart_payload.restart_required is True
+    assert restart_payload.errors == ("exchange.name requires restart before it can apply",)
+    assert restart_payload.next_action == "Save the draft, then restart NFI Engine."
+    assert restart_current_payload.exchange.name == "simulator"
+    assert invalid_apply_payload.applied is False
+    assert invalid_apply_payload.errors == ("risk.max_open_trades must be at least 1",)
+    assert invalid_apply_payload.next_action == "Fix the invalid setting values and retry."
+
+
+@pytest.mark.anyio
+async def test_config_apply_updates_runtime_ui_and_write_gate_surfaces() -> None:
+    # Given: a local console with an English, writable runtime.
+    async with _client(create_app(settings=RuntimeSettings())) as client:
+        page = await client.get("/settings")
+        csrf_headers = _csrf_headers_from_page(page.text)
+
+        # When: runtime-safe UI settings are applied.
+        locale_apply = await client.post(
+            "/api/v1/config/apply",
+            headers=csrf_headers,
+            json={"fields": [{"path": "ui.locale", "value": "ko"}]},
+        )
+        localized_page = await client.get("/settings")
+        read_only_apply = await client.post(
+            "/api/v1/config/apply",
+            headers=csrf_headers,
+            json={"fields": [{"path": "ui.read_only", "value": "true"}]},
+        )
+        blocked_write = await client.post(
+            "/api/v1/config/apply",
+            headers=csrf_headers,
+            json={"fields": [{"path": "risk.max_open_trades", "value": "4"}]},
+        )
+
+    # Then: UI rendering and server write gates both read the current runtime settings.
+    locale_payload = ConfigApplyResponse.model_validate_json(locale_apply.content)
+    read_only_payload = ConfigApplyResponse.model_validate_json(read_only_apply.content)
+    assert locale_payload.applied is True
+    assert read_only_payload.applied is True
+    assert localized_page.status_code == 200
+    assert '<html lang="ko">' in localized_page.text
+    assert "로컬 운영자 설정" in localized_page.text
+    assert blocked_write.status_code == 403
+    assert b'"code":"READONLY_ACTION_BLOCKED"' in blocked_write.content
+    assert b'"message":"read-only mode blocks changes"' in blocked_write.content
 
 
 @pytest.mark.anyio

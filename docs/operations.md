@@ -2,6 +2,12 @@
 
 This page covers the M1 operator workflow from config to diagnostics.
 
+For M2 first-run use, install with `bash scripts/install.sh --yes --paper
+--testnet`, open `http://127.0.0.1:18080/`, paste the local token from
+`.runtime/docker.env`, and use Home before editing YAML. The local console should
+answer setup, safety, chart freshness, recent error, and support report questions
+first.
+
 ## Profiles And Preflight
 
 ```bash
@@ -52,3 +58,8 @@ The API exposes `/api/v1/logs/recent`, `/api/v1/errors/{code}`, and
 3. Capture the correlation ID when available.
 4. Export a support report from `/logs`.
 5. Reproduce with a fixture or dry-run command before patching.
+
+For performance-sensitive issues, attach benchmark evidence from the current
+machine instead of a subjective "feels slow" report. M2 baselines cover dashboard
+snapshot latency, home render timing, chart render timing, startup smoke timing,
+and install smoke timing where practical.

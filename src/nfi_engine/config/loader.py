@@ -45,8 +45,12 @@ def load_runtime_settings(path: Path) -> RuntimeSettings:
             message=_format_validation_error(exc),
             path=path,
         ) from exc
-    _validate_runtime_settings(settings=settings, path=path)
+    validate_runtime_settings(settings=settings, path=path)
     return settings
+
+
+def validate_runtime_settings(*, settings: RuntimeSettings, path: Path) -> None:
+    _validate_runtime_settings(settings=settings, path=path)
 
 
 def _read_yaml_config(path: Path) -> ConfigData:

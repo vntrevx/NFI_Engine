@@ -6,6 +6,7 @@ import typer
 
 from nfi_engine.cli_backtest import backtest
 from nfi_engine.cli_backup import backup_app
+from nfi_engine.cli_benchmark import benchmark_app
 from nfi_engine.cli_circuit_breaker import circuit_breaker_app
 from nfi_engine.cli_compat import compat_app
 from nfi_engine.cli_config import config_app
@@ -23,6 +24,7 @@ from nfi_engine.cli_profile import profile_app
 from nfi_engine.cli_risk import risk_app
 from nfi_engine.cli_sandbox import sandbox_app
 from nfi_engine.cli_serve import serve
+from nfi_engine.cli_setup import setup_app
 from nfi_engine.cli_simulate import simulate_app
 from nfi_engine.cli_strategy import strategy_app
 from nfi_engine.cli_validation import validate_app
@@ -41,6 +43,7 @@ app: Final[typer.Typer] = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(backup_app, name="backup")
+app.add_typer(benchmark_app, name="benchmark")
 app.add_typer(config_app, name="config")
 app.add_typer(circuit_breaker_app, name="circuit-breaker")
 app.add_typer(compat_app, name="compat")
@@ -56,6 +59,7 @@ app.add_typer(profile_app, name="profile")
 app.add_typer(plugins_app, name="plugins")
 app.add_typer(risk_app, name="risk")
 app.add_typer(sandbox_app, name="sandbox")
+app.add_typer(setup_app, name="setup")
 app.add_typer(simulate_app, name="simulate")
 app.add_typer(strategy_app, name="strategy")
 app.add_typer(validate_app, name="validate")

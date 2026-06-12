@@ -9,23 +9,24 @@ services:
       - nfi-engine
       - serve
       - --config
-      - /app/examples/futures-paper.yaml
+      - /config/futures-paper.yaml
       - --host
       - 0.0.0.0
       - --port
       - "18080"
     env_file:
-      - examples/docker.env.example
+      - path: examples/docker.env.example
+      - path: .runtime/docker.env
+        required: false
     environment:
       NFI_ENGINE_ALLOW_CONTAINER_BIND: "1"
-      NFI_ENGINE_API_TOKEN: ${NFI_ENGINE_API_TOKEN:-change-me-local-only}
-      NFI_ENGINE_CONFIG: /app/examples/futures-paper.yaml
+      NFI_ENGINE_CONFIG: /config/futures-paper.yaml
     ports:
       - "127.0.0.1:18080:18080"
     volumes:
       - nfi-data:/data
       - nfi-logs:/logs
-      - nfi-config:/config
+      - ./.runtime/config:/config:ro
       - ./examples:/app/examples:ro
     healthcheck:
       test:
@@ -44,11 +45,13 @@ services:
       - nfi-engine
       - --help
     env_file:
-      - examples/docker.env.example
+      - path: examples/docker.env.example
+      - path: .runtime/docker.env
+        required: false
     volumes:
       - nfi-data:/data
       - nfi-logs:/logs
-      - nfi-config:/config
+      - ./.runtime/config:/config:ro
       - ./examples:/app/examples:ro
 
   paper:
@@ -60,21 +63,22 @@ services:
       - nfi-engine
       - paper-run
       - --config
-      - /app/examples/futures-paper.yaml
+      - /config/futures-paper.yaml
       - --ticks
       - /app/tests/fixtures/ticks/btc_usdt_futures.jsonl
       - --max-events
       - "25"
     env_file:
-      - examples/docker.env.example
+      - path: examples/docker.env.example
+      - path: .runtime/docker.env
+        required: false
     volumes:
       - nfi-data:/data
       - nfi-logs:/logs
-      - nfi-config:/config
+      - ./.runtime/config:/config:ro
       - ./examples:/app/examples:ro
       - ./tests/fixtures:/app/tests/fixtures:ro
 
 volumes:
   nfi-data:
   nfi-logs:
-  nfi-config:

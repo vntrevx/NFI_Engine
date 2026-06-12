@@ -9,10 +9,54 @@ fork of either codebase. Freqtrade is used only as a feature benchmark for what 
 serious operator engine should cover. Upstream NFI strategy code is not vendored
 in this repository.
 
-Milestone 1 is dry-run first. Real-money trading, unsafe live shortcuts, and
+Milestone 1 is dry-run first. Real-money trading, risky live shortcuts, and
 profit claims are out of scope.
 
+Milestone 2 focuses on operator usability and product identity: simple setup,
+home dashboard, local chart snapshots, English/Korean/Greek UI text,
+one-command Docker install/uninstall, benchmark evidence, and a release gate
+that proves the local operator flow before it is called shippable. See
+[docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md) for the
+clean-room feature map and NFI Engine differentiation rules.
+
 ## Quickstart
+
+Docker is the primary first-run path. From a local checkout:
+
+```bash
+bash scripts/install.sh --yes --paper --testnet
+```
+
+First Run:
+
+1. Open `http://127.0.0.1:18080/`.
+2. Paste the local operator token from `.runtime/docker.env` into the login screen. The installer prints `login_token_file=.runtime/docker.env`, never the token value.
+3. Use Home to check Setup Doctor, Safety Explainer, chart status, recent errors, and pairlist state.
+4. Use Settings for the small Simple Mode form and setup preview. API key and API secret fields are write-only and redacted from output.
+5. Use the language selector for English, Korean, and Greek UI text.
+6. Use Logs to export a redacted support report when an error code appears.
+
+Useful first checks:
+
+```bash
+curl -i http://127.0.0.1:18080/api/v1/ping
+bash scripts/uninstall.sh --yes
+```
+
+Safe uninstall preserves generated runtime files and data volumes. Destructive
+purge is explicit:
+
+```bash
+bash scripts/uninstall.sh --purge --yes
+```
+
+Do not enter real exchange credentials into issues, chat logs, committed files,
+or shell history. For local setup, prefer testnet or paper credentials and rotate
+them after experiments.
+
+## Developer Setup
+
+Use the manual path when developing the engine without Docker:
 
 ```bash
 uv sync
@@ -20,37 +64,40 @@ uv run nfi-engine --help
 uv run nfi-engine config validate --config examples/spot-paper.yaml
 uv run nfi-engine preflight check --profile local-paper --config examples/spot-paper.yaml
 uv run nfi-engine backtest --config examples/spot-paper.yaml --timerange 2026-01-01:2026-01-07 --output .omo/evidence/quickstart-backtest.json
-```
-
-Run the API and local operator console:
-
-```bash
 uv run nfi-engine serve --config examples/futures-paper.yaml --host 127.0.0.1 --port 18080
 ```
 
 Open:
 
+- `http://127.0.0.1:18080/`
 - `http://127.0.0.1:18080/settings`
 - `http://127.0.0.1:18080/logs`
 
 When `api.auth_token` is configured, create a browser session through the login
-endpoint before using protected pages. Mutating API calls require the session
-cookie and `x-nfi-csrf-token`.
+screen before using protected pages. Mutating API calls require the session
+cookie and `x-nfi-csrf-token`; the token is never stored in browser local
+storage.
 
 ## Docker Quickstart
 
 ```bash
-docker build -t nfi-engine:local .
-docker compose config
-docker compose --profile paper up --build -d api
+bash scripts/install.sh --yes --paper --testnet
 curl -i http://127.0.0.1:18080/api/v1/ping
-docker compose run --rm cli nfi-engine config validate --config /app/examples/futures-paper.yaml
-docker compose down -v
+bash scripts/uninstall.sh --yes
 ```
 
 Compose binds the API to `127.0.0.1:18080` by default and uses named volumes for
-data, logs, and config. Do not put exchange secrets in committed env files. See
-[docs/docker.md](docs/docker.md).
+data and logs. Safe uninstall preserves generated runtime files and named
+volumes; `bash scripts/uninstall.sh --purge --yes` removes them. Do not put
+exchange secrets in committed env files. See [docs/docker.md](docs/docker.md).
+
+## Why NFI Engine Is Different
+
+NFI Engine borrows feature pressure from mature trading bots, then reshapes the
+operator experience around fewer decisions, explicit safety gates, benchmark
+evidence, and small module boundaries. The goal is not to imitate FreqUI or
+publish speed claims early. The goal is a maintainable engine where setup,
+diagnostics, strategy research, and performance work are easy to verify.
 
 ## Architecture Map
 
@@ -128,6 +175,13 @@ The console is a local operator surface, not a public dashboard.
 
 See [docs/ui.md](docs/ui.md).
 
+## Feature Coverage
+
+Freqtrade remains the functional benchmark, but NFI Engine must stay original in
+design and implementation. Each broad feature category is tracked with an
+explicit NFI Engine angle in
+[docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md).
+
 ## Evidence And Quality Gates
 
 Use the smoke harness to refresh final evidence files:
@@ -135,6 +189,18 @@ Use the smoke harness to refresh final evidence files:
 ```bash
 bash scripts/final_smoke.sh
 ```
+
+The current M2 hardening evidence root is:
+
+```text
+.omo/evidence/2026-06-12-dev-entry/
+```
+
+The release gate includes Docker install/login/Home smoke, local benchmark JSON,
+a supplied-baseline regression failure check, and desktop/mobile browser
+evidence for Home, Settings, Logs, and the login path. Benchmark regression
+blocking only applies when `--baseline` is supplied; first-run smoke validates
+the generated local report without claiming public speed superiority.
 
 Core quality gate:
 
@@ -148,13 +214,13 @@ uv run pytest -q
 Plan evidence audit:
 
 ```bash
-python3 scripts/verify_plan_evidence.py .omo/plans/nfi-engine.md .omo/evidence
+python3 scripts/verify_plan_evidence.py .omo/plans/2026-06-12-nfi-engine-dev-entry.md .omo/evidence/2026-06-12-dev-entry
 ```
 
 ## Milestone 1 Limits
 
 - No real-money execution.
-- No unsafe live-trading bypass.
+- No risky live-trading bypass.
 - No profit promise or profitability claim.
 - No public internet exposure for the operator console.
 - No full upstream NFI parity claim.
@@ -163,6 +229,9 @@ python3 scripts/verify_plan_evidence.py .omo/plans/nfi-engine.md .omo/evidence
 ## Further Reading
 
 - [docs/docker.md](docs/docker.md)
+- [docs/contributing.md](docs/contributing.md)
+- [docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md)
+- [docs/performance.md](docs/performance.md)
 - [docs/plugins.md](docs/plugins.md)
 - [docs/reproducibility.md](docs/reproducibility.md)
 - [docs/circuit-breakers.md](docs/circuit-breakers.md)

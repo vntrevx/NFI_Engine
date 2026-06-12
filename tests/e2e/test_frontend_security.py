@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar, Final
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 from pydantic import BaseModel, ConfigDict
 
 from nfi_engine.api.app import create_app
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 LOCAL_BEARER: Final = "local-test-bearer"
+type WritePayload = dict[str, str | list[dict[str, str]]]
 
 
 class ErrorDetail(BaseModel):
@@ -71,6 +72,8 @@ async def test_session_login_logout_and_expiry_when_operator_uses_console() -> N
 
     # Then: a session cookie and CSRF token are issued, then invalidated on logout.
     assert unauthenticated_settings.status_code == 401
+    assert 'data-testid="login-root"' in unauthenticated_settings.text
+    assert 'data-testid="login-token"' in unauthenticated_settings.text
     assert unauthenticated_audit.status_code == 401
     assert login.status_code == 200
     assert "nfi_engine_session" in login.headers["set-cookie"]
@@ -126,6 +129,43 @@ async def test_csrf_blocks_mutating_settings_request_when_header_is_missing() ->
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/v1/config/apply", {"fields": [{"path": "risk.max_open_trades", "value": "4"}]}),
+        ("/api/v1/pairlist/apply", {"blacklist": "DOGE/USDT:USDT"}),
+        ("/api/v1/backup/restore", None),
+        ("/api/v1/start", None),
+        ("/api/v1/pause", None),
+        ("/api/v1/stop", None),
+    ],
+)
+async def test_csrf_blocks_all_write_router_endpoints(
+    path: str,
+    payload: WritePayload | None,
+) -> None:
+    # Given: a token-protected local API.
+    async with _client(create_app(settings=_settings())) as client:
+        # When: each write endpoint is called with bearer auth but no session CSRF.
+        missing = await _post(client, path, payload, headers=_auth_headers())
+        session = await _login(client)
+        invalid = await _post(
+            client,
+            path,
+            payload,
+            headers={"x-nfi-csrf-token": f"wrong-{session.csrf_token}"},
+        )
+
+    # Then: every write route rejects before executing its mutation.
+    missing_error = ErrorEnvelope.model_validate_json(missing.content)
+    invalid_error = ErrorEnvelope.model_validate_json(invalid.content)
+    assert missing.status_code == 403
+    assert missing_error.detail.code == "CSRF_TOKEN_REQUIRED"
+    assert invalid.status_code == 403
+    assert invalid_error.detail.code == "CSRF_TOKEN_INVALID"
+
+
+@pytest.mark.anyio
 async def test_read_only_mode_blocks_mutations_but_keeps_inspection_available() -> None:
     # Given: a read-only local console session.
     settings = _settings(read_only=True)
@@ -155,13 +195,22 @@ async def test_read_only_mode_blocks_mutations_but_keeps_inspection_available() 
         )
         backup_restore = await client.post("/api/v1/backup/restore", headers=headers, json={})
         runtime_start = await client.post("/api/v1/start", headers=headers)
+        runtime_pause = await client.post("/api/v1/pause", headers=headers)
+        runtime_stop = await client.post("/api/v1/stop", headers=headers)
         audit = await client.get("/api/v1/security/audit")
 
     # Then: reads work, writes fail server-side, and security audit events are visible.
     assert settings_page.status_code == 200
     assert logs_page.status_code == 200
     assert pairlist_preview.status_code == 200
-    for response in (config_apply, pairlist_apply, backup_restore, runtime_start):
+    for response in (
+        config_apply,
+        pairlist_apply,
+        backup_restore,
+        runtime_start,
+        runtime_pause,
+        runtime_stop,
+    ):
         error = ErrorEnvelope.model_validate_json(response.content)
         assert response.status_code == 403
         assert error.detail.code == "READONLY_ACTION_BLOCKED"
@@ -200,6 +249,18 @@ async def _login(client: AsyncClient) -> SessionPayload:
     response = await client.post("/api/v1/session/login", headers=_auth_headers())
     assert response.status_code == 200
     return SessionPayload.model_validate_json(response.content)
+
+
+async def _post(
+    client: AsyncClient,
+    path: str,
+    payload: WritePayload | None,
+    *,
+    headers: dict[str, str],
+) -> Response:
+    if payload is None:
+        return await client.post(path, headers=headers)
+    return await client.post(path, headers=headers, json=payload)
 
 
 def _client(app: FastAPI) -> AsyncClient:

@@ -6,7 +6,7 @@ from typing import ClassVar, Final
 from pydantic import BaseModel, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from nfi_engine.config.enums import LogLevel
+from nfi_engine.config.enums import Locale, LogLevel
 from nfi_engine.domain import MarginMode, TradingMode
 
 
@@ -76,6 +76,7 @@ class ApiSettings(StrictConfigModel):
 class UiSettings(StrictConfigModel):
     enabled: bool = True
     read_only: bool = False
+    locale: Locale = Locale.EN
 
 
 class LoggingSettings(StrictConfigModel):

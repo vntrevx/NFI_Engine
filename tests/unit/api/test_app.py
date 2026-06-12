@@ -175,7 +175,11 @@ def test_auth_validation_rejects_weak_token_outside_local_environment() -> None:
         validate_api_auth_settings(settings)
 
 
-def _settings(*, bearer: str = LOCAL_BEARER, environment: str = "local") -> RuntimeSettings:
+def _settings(
+    *,
+    bearer: str = LOCAL_BEARER,
+    environment: str = "local",
+) -> RuntimeSettings:
     return RuntimeSettings(
         engine=EngineSettings(environment=environment),
         api=ApiSettings.model_validate({"auth_token": bearer}),
