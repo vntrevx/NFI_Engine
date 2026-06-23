@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from nfi_engine.api.auth import OperatorIdentity
 from nfi_engine.api.config_routes import add_config_routes
 from nfi_engine.api.dashboard_routes import add_dashboard_routes
+from nfi_engine.api.data_lifecycle_routes import add_data_lifecycle_routes
 from nfi_engine.api.log_lookup import error_lookup_response
 from nfi_engine.api.models import (
     BackupRestoreResponse,
@@ -20,7 +21,6 @@ from nfi_engine.api.models import (
     PairHistoryResponse,
     PingResponse,
     ProfitResponse,
-    StateResponse,
     StatusResponse,
     StrategyItemResponse,
     StrategyListResponse,
@@ -30,14 +30,17 @@ from nfi_engine.api.models import (
     support_bundle_response,
 )
 from nfi_engine.api.pairlist_routes import add_pairlist_routes
+from nfi_engine.api.runtime_control_routes import add_runtime_control_routes
+from nfi_engine.api.runtime_health_routes import add_runtime_health_routes
 from nfi_engine.api.security import SecurityContext
 from nfi_engine.api.security_routes import add_security_audit_route, add_security_routes
 from nfi_engine.api.setup_routes import add_setup_routes
 from nfi_engine.api.state import ApiContext
 from nfi_engine.api.support_bundle import support_bundle_zip
+from nfi_engine.api.update_routes import add_update_routes
+from nfi_engine.api.wallet_routes import add_wallet_routes
 from nfi_engine.config import LogLevel
 from nfi_engine.dashboard import summarize_dashboard_read_models
-from nfi_engine.paper import BotCommand
 from nfi_engine.preflight.models import PreflightReport
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -79,32 +82,31 @@ def build_api_router(
     public_router.add_api_route("/health", _health(context), methods=["GET"])
     add_security_routes(public_router, security)
     add_security_audit_route(protected_router, security)
-    write_router.add_api_route(
-        "/start",
-        _state_command(context, BotCommand.START),
-        methods=["POST"],
-    )
-    write_router.add_api_route(
-        "/pause",
-        _state_command(context, BotCommand.PAUSE),
-        methods=["POST"],
-    )
-    write_router.add_api_route(
-        "/stop",
-        _state_command(context, BotCommand.STOP),
-        methods=["POST"],
+    add_runtime_control_routes(
+        read_router=protected_router,
+        write_router=write_router,
+        context=context,
+        readiness=readiness,
     )
     protected_router.add_api_route("/status", _status(context), methods=["GET"])
     protected_router.add_api_route("/profit", _profit(context), methods=["GET"])
     protected_router.add_api_route("/trades", _trades(context), methods=["GET"])
     protected_router.add_api_route("/locks", _locks, methods=["GET"])
     add_dashboard_routes(protected_router, context=context, logs=logs, readiness=readiness)
+    add_wallet_routes(protected_router, context=context)
+    add_runtime_health_routes(protected_router, context=context, readiness=readiness)
     protected_router.add_api_route("/strategies", _strategies(context), methods=["GET"])
     protected_router.add_api_route("/strategy/{name}", _strategy_detail(context), methods=["GET"])
     protected_router.add_api_route("/pair_history", _pair_history, methods=["GET"])
     add_setup_routes(protected_router)
     add_pairlist_routes(read_router=protected_router, write_router=write_router, context=context)
     add_config_routes(read_router=protected_router, write_router=write_router, context=context)
+    add_update_routes(read_router=protected_router, write_router=write_router, context=context)
+    add_data_lifecycle_routes(
+        read_router=protected_router,
+        write_router=write_router,
+        context=context,
+    )
     write_router.add_api_route("/backup/restore", _backup_restore, methods=["POST"])
     protected_router.add_api_route("/logs/recent", _logs_recent(logs), methods=["GET"])
     protected_router.add_api_route("/logs/search", _logs_search(logs), methods=["GET"])
@@ -133,13 +135,6 @@ def _ping() -> PingResponse:
 def _health(context: ApiContext) -> Callable[[], HealthResponse]:
     def endpoint() -> HealthResponse:
         return HealthResponse(status="ok", host=context.settings.api.host, version="0.1.0")
-
-    return endpoint
-
-
-def _state_command(context: ApiContext, command: BotCommand) -> Callable[[], StateResponse]:
-    def endpoint() -> StateResponse:
-        return StateResponse(state=context.runtime.apply(command))
 
     return endpoint
 

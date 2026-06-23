@@ -14,6 +14,7 @@ from nfi_engine.api.models import LogListResponse, SupportBundleResponse
 CONFIG_NAME: Final = "config.json"
 LOGS_NAME: Final = "logs.json"
 MANIFEST_NAME: Final = "manifest.json"
+LOCAL_PROFILE_NAME: Final = "local-profile.json"
 
 
 class SupportBundleManifest(BaseModel):
@@ -24,6 +25,18 @@ class SupportBundleManifest(BaseModel):
     redacted: bool
     files: tuple[str, ...]
     checksums: dict[str, str]
+
+
+class SupportBundleLocalProfile(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    engine_version: str
+    generated_at: datetime
+    exchange_name: str
+    trading_mode: str
+    environment: str
+    locale: str
+    read_only: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +71,20 @@ def _bundle_members(bundle: SupportBundleResponse) -> tuple[SupportBundleMember,
         SupportBundleMember(
             LOGS_NAME,
             LogListResponse(items=bundle.logs).model_dump_json(indent=2).encode(),
+        ),
+        SupportBundleMember(
+            LOCAL_PROFILE_NAME,
+            SupportBundleLocalProfile(
+                engine_version=bundle.engine_version,
+                generated_at=bundle.generated_at,
+                exchange_name=bundle.redacted_config.exchange.name,
+                trading_mode=bundle.redacted_config.exchange.trading_mode,
+                environment=bundle.redacted_config.engine.environment,
+                locale=bundle.redacted_config.ui.locale,
+                read_only=bundle.redacted_config.ui.read_only,
+            )
+            .model_dump_json(indent=2)
+            .encode(),
         ),
     )
 

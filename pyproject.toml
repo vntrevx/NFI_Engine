@@ -51,6 +51,8 @@ reportUnnecessaryComparison = "none"
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = ["scripts/*.sh"]
+force-exclude = true
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -121,6 +123,9 @@ source = ["src"]
 branch = true
 
 [tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = true
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",

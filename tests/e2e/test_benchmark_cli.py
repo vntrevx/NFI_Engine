@@ -41,6 +41,11 @@ def test_benchmark_m2_command_writes_valid_json_report(tmp_path: Path) -> None:
     assert '"dashboard_snapshot_latency"' in content
     assert '"home_render_smoke"' in content
     assert '"chart_render_smoke"' in content
+    assert '"backtest_720_candle_latency"' in content
+    assert '"x7_strategy_inspect_latency"' in content
+    assert '"x7_feature_graph_latency"' in content
+    assert '"x7_backtest_sample_latency"' in content
+    assert '"x7_paper_sample_latency"' in content
     assert '"startup_smoke"' in content
     assert '"install_smoke"' in content
     assert '"freqtrade_available": false' in content

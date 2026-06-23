@@ -8,6 +8,7 @@ from nfi_engine.backtest.models import (
     ReproducibilityMetadata,
     TradeRecord,
 )
+from nfi_engine.strategy.timeline import TimelinePayload, timeline_to_payload
 
 
 class TradePayload(TypedDict):
@@ -76,6 +77,7 @@ class BacktestPayload(TypedDict):
     config_digest: str
     strategy: StrategyPayload
     metadata: MetadataPayload
+    timeline: TimelinePayload
 
 
 def result_to_json_payload(result: BacktestResult) -> BacktestPayload:
@@ -100,6 +102,7 @@ def result_to_json_payload(result: BacktestResult) -> BacktestPayload:
             can_short=result.strategy.can_short,
         ),
         metadata=metadata_to_payload(result.metadata),
+        timeline=timeline_to_payload(result.timeline),
     )
 
 

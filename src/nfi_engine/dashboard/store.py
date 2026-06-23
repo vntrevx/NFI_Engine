@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from asyncio import Lock
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -36,9 +37,11 @@ class PersistenceDashboardReadStore:
     equity_limit: int = 120
     position_limit: int = 50
     trade_limit: int = 50
+    _initialized: bool = field(default=False, init=False, repr=False, compare=False)
+    _initialize_lock: Lock = field(default_factory=Lock, init=False, repr=False, compare=False)
 
     async def read_models(self) -> DashboardReadModels:
-        await self.database.initialize()
+        await self._ensure_initialized()
         async with self.database.session() as session:
             equity = await EquitySnapshotRepository(session).list_recent(limit=self.equity_limit)
             positions = await PositionRepository(session).list_open(limit=self.position_limit)
@@ -48,6 +51,15 @@ class PersistenceDashboardReadStore:
             open_positions=tuple(_open_position(record) for record in positions),
             recent_trades=tuple(_recent_trade(record) for record in trades),
         )
+
+    async def _ensure_initialized(self) -> None:
+        if self._initialized:
+            return
+        async with self._initialize_lock:
+            if self._initialized:
+                return
+            await self.database.initialize()
+            object.__setattr__(self, "_initialized", True)
 
 
 def _equity_point(record: EquitySnapshotRecord) -> DashboardEquityPoint:

@@ -9,6 +9,7 @@ from nfi_engine.config import (
     ConfigLoadError,
     FieldGroup,
     FieldMetadata,
+    env_overrides,
     frontend_metadata,
     load_runtime_settings,
 )
@@ -119,6 +120,66 @@ def test_futures_config_requires_margin_mode(tmp_path: Path) -> None:
     assert exc_info.value.code is ConfigErrorCode.FUTURES_MARGIN_MODE_REQUIRED
 
 
+def test_unknown_exchange_name_is_rejected_before_runtime_use(tmp_path: Path) -> None:
+    # Given
+    config_path = _write_config(
+        tmp_path,
+        (
+            "exchange:",
+            "  name: typo-exchange",
+            "  trading_mode: spot",
+        ),
+    )
+
+    # When
+    with pytest.raises(ConfigLoadError) as exc_info:
+        load_runtime_settings(config_path)
+
+    # Then
+    assert exc_info.value.code is ConfigErrorCode.EXCHANGE_UNSUPPORTED
+    assert "typo-exchange" in exc_info.value.message
+
+
+def test_exchange_trading_mode_mismatch_is_rejected(tmp_path: Path) -> None:
+    # Given
+    config_path = _write_config(
+        tmp_path,
+        (
+            "exchange:",
+            "  name: kraken",
+            "  trading_mode: futures",
+            "  margin_mode: isolated",
+        ),
+    )
+
+    # When
+    with pytest.raises(ConfigLoadError) as exc_info:
+        load_runtime_settings(config_path)
+
+    # Then
+    assert exc_info.value.code is ConfigErrorCode.EXCHANGE_TRADING_MODE_UNSUPPORTED
+
+
+def test_exchange_margin_mode_mismatch_is_rejected(tmp_path: Path) -> None:
+    # Given
+    config_path = _write_config(
+        tmp_path,
+        (
+            "exchange:",
+            "  name: bitget",
+            "  trading_mode: futures",
+            "  margin_mode: cross",
+        ),
+    )
+
+    # When
+    with pytest.raises(ConfigLoadError) as exc_info:
+        load_runtime_settings(config_path)
+
+    # Then
+    assert exc_info.value.code is ConfigErrorCode.EXCHANGE_MARGIN_MODE_UNSUPPORTED
+
+
 def test_env_override_wins_when_nested_setting_is_present(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -140,6 +201,37 @@ def test_env_override_wins_when_nested_setting_is_present(
 
     # Then
     assert settings.risk.stake_usdt == 25
+
+
+def test_env_overrides_clone_config_once_for_multiple_runtime_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config: env_overrides.ConfigData = {
+        "risk": {"stake_usdt": "10"},
+        "logging": {"level": "info"},
+    }
+    environ = {
+        "NFI_ENGINE__RISK__STAKE_USDT": "25",
+        "NFI_ENGINE__LOGGING__LEVEL": "debug",
+        "NFI_ENGINE__API__AUTH_TOKEN": "local-token",
+    }
+    clone_calls = 0
+    original_clone = env_overrides.clone_config
+
+    def counted_clone(config_data: env_overrides.ConfigData) -> env_overrides.ConfigData:
+        nonlocal clone_calls
+        clone_calls += 1
+        return original_clone(config_data)
+
+    monkeypatch.setattr(env_overrides, "clone_config", counted_clone)
+
+    result = env_overrides.apply_env_overrides(config, environ)
+
+    assert clone_calls == 1
+    assert result["risk"] == {"stake_usdt": "25"}
+    assert result["logging"] == {"level": "debug"}
+    assert result["api"] == {"auth_token": "local-token"}
+    assert config == {"risk": {"stake_usdt": "10"}, "logging": {"level": "info"}}
 
 
 def test_frontend_metadata_marks_safe_sensitive_and_restart_fields() -> None:

@@ -6,7 +6,8 @@ from typing import Annotated, Final
 
 import typer
 
-from nfi_engine.preflight import PreflightReport, run_preflight_for_config
+from nfi_engine.preflight import PreflightReport
+from nfi_engine.preflight.service import run_preflight_for_config
 
 preflight_app: Final[typer.Typer] = typer.Typer(help="Run operator readiness checks.")
 

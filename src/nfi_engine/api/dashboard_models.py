@@ -7,6 +7,7 @@ from typing import ClassVar
 from pydantic import BaseModel, ConfigDict
 
 from nfi_engine.dashboard.models import (
+    DashboardAction,
     DashboardEquityPoint,
     DashboardError,
     DashboardOpenPosition,
@@ -45,6 +46,24 @@ class DashboardReadinessResponse(StrictDashboardApiModel):
                 )
                 for check in readiness.checks
             ),
+        )
+
+
+class DashboardActionResponse(StrictDashboardApiModel):
+    code: str
+    severity: str
+    title: str
+    detail: str
+    target: str
+
+    @classmethod
+    def from_action(cls, action: DashboardAction) -> DashboardActionResponse:
+        return cls(
+            code=action.code,
+            severity=action.severity,
+            title=action.title,
+            detail=action.detail,
+            target=action.target,
         )
 
 
@@ -143,6 +162,7 @@ class DashboardSnapshotResponse(StrictDashboardApiModel):
     bot_state: str
     trading_mode: str
     exchange: str
+    actions: tuple[DashboardActionResponse, ...]
     readiness: DashboardReadinessResponse
     pairlist: DashboardPairlistResponse
     equity_points: tuple[DashboardEquityPointResponse, ...]
@@ -158,6 +178,9 @@ class DashboardSnapshotResponse(StrictDashboardApiModel):
             bot_state=snapshot.bot_state.value,
             trading_mode=snapshot.trading_mode,
             exchange=snapshot.exchange,
+            actions=tuple(
+                DashboardActionResponse.from_action(action) for action in snapshot.actions
+            ),
             readiness=DashboardReadinessResponse.from_readiness(snapshot.readiness),
             pairlist=DashboardPairlistResponse(
                 total=snapshot.pairlist.total,

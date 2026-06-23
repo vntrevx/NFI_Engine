@@ -6,10 +6,9 @@ import pytest
 
 from nfi_engine.domain import Leverage, PositionSide, SignalType, TradingMode, TradingPair
 from nfi_engine.strategy import (
-    DataProviderFacade,
+    CallbackSupportLevel,
     FreqtradeStrategyAdapter,
     NativeStrategy,
-    PairFrame,
     RunMode,
     StrategyContractError,
     StrategyErrorCode,
@@ -24,6 +23,7 @@ from tests.fixtures.strategies.nfi_shape import (
     LookaheadStrategy,
     MetadataLookupStrategy,
     NFISmokeStrategy,
+    UnsupportedCallbackStrategy,
 )
 
 
@@ -91,6 +91,42 @@ def test_optional_callbacks_are_reported_when_missing() -> None:
     assert "adjust_trade_position" not in inspection.detected_callbacks
 
 
+def test_callback_support_classifies_every_known_callback() -> None:
+    # Given
+    adapter = FreqtradeStrategyAdapter.from_strategy(NFISmokeStrategy())
+
+    # When
+    inspection = adapter.inspect()
+    support_by_name = {item.name: item for item in inspection.callback_support}
+
+    # Then
+    assert support_by_name["populate_indicators"].level is CallbackSupportLevel.SUPPORTED
+    assert support_by_name["populate_entry_trend"].level is CallbackSupportLevel.SUPPORTED
+    assert support_by_name["populate_exit_trend"].level is CallbackSupportLevel.SUPPORTED
+    assert support_by_name["informative_pairs"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["custom_exit"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["custom_stake_amount"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["order_filled"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["adjust_trade_position"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["confirm_trade_entry"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["confirm_trade_exit"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["bot_loop_start"].level is CallbackSupportLevel.PARTIAL
+    assert support_by_name["leverage"].level is CallbackSupportLevel.PARTIAL
+
+
+def test_unknown_public_strategy_callback_is_reported_as_excluded() -> None:
+    # Given
+    adapter = FreqtradeStrategyAdapter.from_strategy(UnsupportedCallbackStrategy())
+
+    # When
+    inspection = adapter.inspect()
+    support_by_name = {item.name: item for item in inspection.callback_support}
+
+    # Then
+    assert support_by_name["custom_entry_price"].level is CallbackSupportLevel.EXCLUDED
+    assert support_by_name["custom_entry_price"].detected is True
+
+
 def test_leverage_callback_returns_typed_leverage_when_present() -> None:
     # Given
     adapter = FreqtradeStrategyAdapter.from_strategy(NFISmokeStrategy())
@@ -111,21 +147,6 @@ def test_builtin_demo_strategy_spec_imports_from_default_config_shape() -> None:
 
     # Then
     assert FreqtradeStrategyAdapter.from_strategy(strategy).inspect().name == "AdapterSmokeStrategy"
-
-
-def test_data_provider_facade_returns_visible_rows_only() -> None:
-    # Given
-    frame = _frame(visible_row_count=1)
-    provider = DataProviderFacade(
-        frames=(PairFrame(pair=_metadata().pair, timeframe="5m", frame=frame),),
-    )
-
-    # When
-    visible = provider.get_pair_dataframe(pair=_metadata().pair, timeframe="5m")
-
-    # Then
-    assert len(visible.rows) == 1
-    assert visible.rows[0].close == Decimal(10)
 
 
 def test_missing_required_freqtrade_method_is_rejected() -> None:

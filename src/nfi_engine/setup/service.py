@@ -3,13 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, assert_never, override
 
 from nfi_engine.config import ConfigLoadError, validate_runtime_settings
+from nfi_engine.config.enums import RiskProfileName
 from nfi_engine.config.models import EngineSettings, ExchangeSettings, RiskSettings, RuntimeSettings
 from nfi_engine.domain import MarginMode, TradingMode
 from nfi_engine.events import REDACTED_TEXT
 from nfi_engine.events.redaction import redact_text
+from nfi_engine.exchange.permissions import audit_exchange_api_permissions
+from nfi_engine.risk.profiles import get_risk_profile
 from nfi_engine.setup.models import RiskPreset, SetupIntent, SetupPlan, SetupRequest
 
 PREVIEW_PATH = Path("<setup-preview>")
@@ -20,11 +23,17 @@ class SetupError(Exception):
     code: str
     message: str
 
+    @override
+    def __str__(self) -> str:
+        return f"{self.code}: {self.message}"
+
 
 def build_setup_plan(request: SetupRequest) -> SetupPlan:
     try:
         settings = _settings_from_request(request)
         config_text = render_setup_config(settings)
+    except SetupError as exc:
+        return _invalid_plan(error=exc.code, request=request)
     except ValueError as exc:
         return _invalid_plan(error=str(exc), request=request)
     redacted = _redact_config(config_text=config_text, request=request)
@@ -66,6 +75,8 @@ def write_setup_config(*, request: SetupRequest, config_path: Path, overwrite: b
 
 
 def render_setup_config(settings: RuntimeSettings) -> str:
+    permission_withdrawal = _yaml_scalar(settings.exchange.permission_withdrawal.value)
+    permission_ip_allowlist = _yaml_scalar(settings.exchange.permission_ip_allowlist.value)
     lines = [
         "engine:",
         f"  live_trading: {_bool(settings.engine.live_trading)}",
@@ -82,8 +93,17 @@ def render_setup_config(settings: RuntimeSettings) -> str:
             f"  testnet: {_bool(settings.exchange.testnet)}",
             f"  api_key: {_nullable(settings.exchange.api_key)}",
             f"  api_secret: {_nullable(settings.exchange.api_secret)}",
+            f"  permission_read: {_yaml_scalar(settings.exchange.permission_read.value)}",
+            f"  permission_trade: {_yaml_scalar(settings.exchange.permission_trade.value)}",
+            f"  permission_futures: {_yaml_scalar(settings.exchange.permission_futures.value)}",
+            f"  permission_withdrawal: {permission_withdrawal}",
+            f"  permission_ip_allowlist: {permission_ip_allowlist}",
             "risk:",
+            f"  risk_profile: {_yaml_scalar(settings.risk.risk_profile.value)}",
+            f"  expert_risk_confirmed: {_bool(settings.risk.expert_risk_confirmed)}",
             f"  stake_usdt: {_yaml_scalar(str(settings.risk.stake_usdt))}",
+            f"  max_daily_loss_pct: {_yaml_scalar(str(settings.risk.max_daily_loss_pct))}",
+            f"  allocation_cap_pct: {_yaml_scalar(str(settings.risk.allocation_cap_pct))}",
             f"  leverage: {_yaml_scalar(str(settings.risk.leverage))}",
             f"  max_leverage: {_yaml_scalar(str(settings.risk.max_leverage))}",
             f"  max_open_trades: {settings.risk.max_open_trades}",
@@ -99,6 +119,7 @@ def render_setup_config(settings: RuntimeSettings) -> str:
 
 
 def _settings_from_request(request: SetupRequest) -> RuntimeSettings:
+    _assert_live_permissions(request)
     return RuntimeSettings(
         engine=EngineSettings(
             live_trading=request.intent is SetupIntent.LIVE,
@@ -111,6 +132,11 @@ def _settings_from_request(request: SetupRequest) -> RuntimeSettings:
             testnet=request.intent is not SetupIntent.LIVE,
             api_key=request.api_key or None,
             api_secret=request.api_secret or None,
+            permission_read=request.permission_read,
+            permission_trade=request.permission_trade,
+            permission_futures=request.permission_futures,
+            permission_withdrawal=request.permission_withdrawal,
+            permission_ip_allowlist=request.permission_ip_allowlist,
         ),
         risk=_risk_settings(request),
         ui=RuntimeSettings().ui.model_copy(update={"locale": request.locale}),
@@ -118,37 +144,75 @@ def _settings_from_request(request: SetupRequest) -> RuntimeSettings:
 
 
 def _margin_mode(request: SetupRequest) -> MarginMode | None:
-    if request.trading_mode is TradingMode.SPOT:
-        return request.margin_mode
-    return request.margin_mode or MarginMode.ISOLATED
+    match request.trading_mode:
+        case TradingMode.SPOT:
+            return request.margin_mode
+        case TradingMode.FUTURES:
+            return request.margin_mode or MarginMode.ISOLATED
+        case unreachable:
+            assert_never(unreachable)
 
 
 def _risk_settings(request: SetupRequest) -> RiskSettings:
-    profile = _risk_profile(request.risk_preset)
-    leverage = profile.leverage if request.trading_mode is TradingMode.FUTURES else Decimal(1)
+    profile = get_risk_profile(_risk_profile_name(request))
+    if profile.requires_confirmation and not request.expert_risk_confirmed:
+        raise SetupError(
+            code="EXPERT_RISK_REQUIRES_CONFIRMATION",
+            message="expert risk profile requires expert_risk_confirmed=true",
+        )
+    match request.trading_mode:
+        case TradingMode.SPOT:
+            leverage = Decimal(1)
+        case TradingMode.FUTURES:
+            leverage = profile.leverage
+        case unreachable:
+            assert_never(unreachable)
     return RiskSettings(
-        stake_usdt=profile.stake_usdt,
+        risk_profile=profile.name,
+        expert_risk_confirmed=request.expert_risk_confirmed,
+        stake_usdt=profile.stake_usdt
+        if request.allocated_amount_usdt is None
+        else request.allocated_amount_usdt,
+        max_daily_loss_pct=profile.max_daily_loss_pct,
+        allocation_cap_pct=profile.allocation_cap_pct,
         leverage=leverage,
-        max_leverage=Decimal(5),
+        max_leverage=profile.max_leverage,
         max_open_trades=profile.max_open_trades,
     )
 
 
-@dataclass(frozen=True, slots=True)
-class _RiskProfile:
-    stake_usdt: Decimal
-    leverage: Decimal
-    max_open_trades: int
+def _assert_live_permissions(request: SetupRequest) -> None:
+    match request.intent:
+        case SetupIntent.PAPER | SetupIntent.TESTNET:
+            return
+        case SetupIntent.LIVE:
+            pass
+        case unreachable:
+            assert_never(unreachable)
+    audit = audit_exchange_api_permissions(
+        read=request.permission_read,
+        trade=request.permission_trade,
+        futures=request.permission_futures,
+        withdrawal=request.permission_withdrawal,
+        ip_allowlist=request.permission_ip_allowlist,
+    )
+    if audit.live_safe:
+        return
+    raise SetupError(code=audit.live_blocking_codes[0], message=audit.summary)
 
 
-def _risk_profile(preset: RiskPreset) -> _RiskProfile:
-    match preset:
+def _risk_profile_name(request: SetupRequest) -> RiskProfileName:
+    if request.risk_preset is None:
+        return request.risk_profile
+    match request.risk_preset:
         case RiskPreset.CONSERVATIVE:
-            return _RiskProfile(stake_usdt=Decimal(10), leverage=Decimal(1), max_open_trades=2)
+            return RiskProfileName.SAFE
         case RiskPreset.BALANCED:
-            return _RiskProfile(stake_usdt=Decimal(25), leverage=Decimal(2), max_open_trades=3)
+            return RiskProfileName.BALANCED
         case RiskPreset.AGGRESSIVE:
-            return _RiskProfile(stake_usdt=Decimal(50), leverage=Decimal(3), max_open_trades=5)
+            return RiskProfileName.EXPERT
+        case unreachable:
+            assert_never(unreachable)
 
 
 def _invalid_plan(*, error: str, request: SetupRequest) -> SetupPlan:

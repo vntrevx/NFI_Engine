@@ -71,7 +71,7 @@ async def test_settings_ui_and_config_workflow_when_local_console_edits_safe_fie
     assert 'data-testid="setup-preview-panel"' in page.text
     assert 'data-testid="setup-preview-button"' in page.text
     assert 'name="intent"' in page.text
-    assert 'name="risk_preset"' in page.text
+    assert 'name="risk_profile"' in page.text
     assert 'name="api_key" type="password"' in page.text
     assert 'name="api_secret" type="password"' in page.text
     assert 'data-testid="advanced-settings"' in page.text

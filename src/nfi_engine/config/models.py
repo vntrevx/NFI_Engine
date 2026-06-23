@@ -6,8 +6,9 @@ from typing import ClassVar, Final
 from pydantic import BaseModel, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from nfi_engine.config.enums import Locale, LogLevel
+from nfi_engine.config.enums import Locale, LogLevel, RiskProfileName
 from nfi_engine.domain import MarginMode, TradingMode
+from nfi_engine.exchange.permissions import ExchangeApiPermissionState
 
 
 class StrictConfigModel(BaseModel):
@@ -27,6 +28,11 @@ class ExchangeSettings(StrictConfigModel):
     testnet: bool = True
     api_key: str | None = None
     api_secret: str | None = None
+    permission_read: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
+    permission_trade: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
+    permission_futures: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
+    permission_withdrawal: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
+    permission_ip_allowlist: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
 
 
 class StrategySettings(StrictConfigModel):
@@ -39,8 +45,11 @@ class DatabaseSettings(StrictConfigModel):
 
 
 class RiskSettings(StrictConfigModel):
+    risk_profile: RiskProfileName = RiskProfileName.BALANCED
+    expert_risk_confirmed: bool = False
     stake_usdt: Decimal = Decimal(10)
     max_daily_loss_pct: Decimal = Decimal("0.05")
+    allocation_cap_pct: Decimal = Decimal("0.10")
     leverage: Decimal = Decimal(1)
     max_leverage: Decimal = Decimal(5)
     liquidation_buffer: Decimal = Decimal("0.05")

@@ -8,7 +8,13 @@ from time import perf_counter
 from nfi_engine.api.app import create_app
 from nfi_engine.api.dashboard_models import DashboardSnapshotResponse
 from nfi_engine.api.models import initial_log_entries
+from nfi_engine.benchmark.backtest_workload import (
+    BACKTEST_WORKLOAD_CANDLES,
+    build_backtest_workload_request,
+    run_backtest_workload,
+)
 from nfi_engine.benchmark.models import BenchmarkMeasurement, MeasurementInput
+from nfi_engine.benchmark.x7_measurements import x7_measurements
 from nfi_engine.config import Locale, RuntimeSettings, load_runtime_settings
 from nfi_engine.dashboard import (
     DashboardReadModels,
@@ -22,6 +28,7 @@ from nfi_engine.profiles.catalog import default_profile_name
 from nfi_engine.setup import RiskPreset, SetupIntent, SetupRequest, write_setup_config
 from nfi_engine.ui import render_home_page
 from nfi_engine.ui.chart import render_dashboard_chart_panel
+from nfi_engine.ui.home_context import HomeRuntimeContext
 
 
 def m2_measurements(
@@ -35,6 +42,8 @@ def m2_measurements(
         _dashboard_snapshot_measurement(settings=settings, config=config, samples=samples),
         _home_render_measurement(settings=settings, samples=samples),
         _chart_render_measurement(settings=settings, samples=samples),
+        _backtest_workload_measurement(samples=samples),
+        *x7_measurements(samples=samples),
         _install_smoke_measurement(samples=samples),
     )
 
@@ -111,8 +120,8 @@ def _home_render_measurement(*, settings: RuntimeSettings, samples: int) -> Benc
             render_home_page(
                 settings=settings,
                 logs=initial_log_entries(),
-                readiness=None,
-            ).encode(),
+                runtime=HomeRuntimeContext(),
+            ).encode("utf-8"),
         ),
     )
     return _measurement(
@@ -147,6 +156,25 @@ def _chart_render_measurement(*, settings: RuntimeSettings, samples: int) -> Ben
             duration_ms=duration,
             budget_ms=5.0,
             data_label="chart-shell",
+            payload_bytes=payload,
+        ),
+    )
+
+
+def _backtest_workload_measurement(*, samples: int) -> BenchmarkMeasurement:
+    request = build_backtest_workload_request()
+    duration, payload = _sample(
+        samples=samples,
+        action=lambda: run_backtest_workload(request),
+    )
+    return _measurement(
+        MeasurementInput(
+            name="backtest_720_candle_latency",
+            workflow="run deterministic 720-candle backtest with clean-room smoke strategy",
+            samples=samples,
+            duration_ms=duration,
+            budget_ms=1_000.0,
+            data_label=f"synthetic-{BACKTEST_WORKLOAD_CANDLES}-5m-flat",
             payload_bytes=payload,
         ),
     )

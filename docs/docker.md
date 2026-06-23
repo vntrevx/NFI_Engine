@@ -7,6 +7,8 @@ operator checks. It is not a live-money deployment recipe.
 
 ```bash
 bash scripts/install.sh --yes --paper --testnet
+npm run nfi:install
+bun run nfi:install
 ```
 
 The installer creates `.runtime/config/futures-paper.yaml`,
@@ -16,6 +18,32 @@ CLI container. The generated env file is written with `0600` permissions and
 command output never prints exchange keys, API secrets, or the generated API
 token. The output prints `login_token_file=.runtime/docker.env` so the operator
 knows where to read the local browser login token.
+
+The npm and Bun commands are thin wrappers around the same shell installer and
+do not add runtime dependencies. Use the dry-run path to verify the generated
+receipt before starting Docker:
+
+```bash
+bash scripts/install.sh --yes --paper --testnet --dry-run
+npm run nfi:install:dry-run
+bun run nfi:install:dry-run
+```
+
+Host requirements are explicit. Dry-run setup needs `uv` and Python 3.12+
+available as `python3`; the full Docker path also needs Docker with Compose v2.
+If a tool is missing, the installer exits with `INSTALL_MISSING_COMMAND` and an
+`install_hint` line instead of printing a partial or misleading success message.
+
+For isolated release-candidate checks on a host that may already run another
+NFI Engine stack, give the Docker project and loopback host port explicitly:
+
+```bash
+bash scripts/install.sh --yes --paper --testnet --project-name nfi-engine-pi4-rc --host-port 18113
+```
+
+The API still binds to loopback only:
+`http://127.0.0.1:18113/`. The option exists to avoid port and volume conflicts
+during Pi4 verification, not to expose the service publicly.
 
 ## First Run
 
@@ -53,8 +81,34 @@ Services:
 - `cli`: one-shot CLI container for maintenance and smoke commands.
 - `paper`: profile-gated paper runner using fixture ticks.
 
-The API publishes `127.0.0.1:18080:18080`. Keep that loopback binding unless a
-later deployment task adds a reverse proxy, TLS, and explicit operator auth.
+The API publishes `127.0.0.1:${NFI_ENGINE_HOST_PORT:-18080}:18080`. Keep that
+loopback binding unless a later deployment task adds a reverse proxy, TLS, and
+explicit operator auth.
+The API container uses `restart: unless-stopped`, Docker init, and bounded
+json-file logs (`10m` x 3) so Raspberry Pi and low-resource paper/testnet
+installs can survive service restarts without unbounded log growth. This is an
+operator reliability setting, not a live-money deployment guarantee.
+
+## Raspberry Pi 4 RC Profile
+
+Pi4 release-candidate checks are explicit and reversible. The profile script
+does not change CPU, fan, sysctl, journald, Docker daemon, Bluetooth, GPIO, or
+boot settings:
+
+```bash
+bash scripts/pi4_rc_profile.sh --project-name nfi-engine-pi4-rc --host-port 18113 --output .omo/evidence/pi4-rc-profile.txt
+npm run nfi:pi4:rc-check -- --project-name nfi-engine-pi4-rc --host-port 18113
+bun run nfi:pi4:rc-check -- --project-name nfi-engine-pi4-rc --host-port 18113
+```
+
+The script blocks deployment on reduced CPU max frequency, active throttling,
+high temperature, missing Docker/Compose/uv/Python, public port binding,
+unbounded Docker logs, or low disk space. It prints rollback receipts:
+
+```bash
+bash scripts/uninstall.sh --yes --project-name nfi-engine-pi4-rc
+bash scripts/uninstall.sh --purge --yes --dry-run --project-name nfi-engine-pi4-rc
+```
 
 ## Volumes
 
@@ -83,12 +137,19 @@ Weak tokens are rejected outside local/dev/test environments.
 ```bash
 docker compose run --rm cli nfi-engine --help
 docker compose run --rm cli nfi-engine config validate --config /config/futures-paper.yaml
+docker compose run --rm cli nfi-engine strategy inspect --config /app/examples/x7-futures-paper.yaml --strategy nfi_engine.strategy.nfi_x7:X7NativeStrategy --json
 ```
+
+The X7 inspect command verifies the native semantic strategy surface available
+to the local dry-run/paper/testnet runtime. It is a runtime-shape check, not a
+trade-result claim.
 
 ## Safe Uninstall
 
 ```bash
 bash scripts/uninstall.sh --yes
+npm run nfi:uninstall
+bun run nfi:uninstall
 ```
 
 Safe uninstall stops and removes Compose containers while preserving generated
@@ -99,12 +160,15 @@ stack but keep config, logs, and SQLite data for the next run.
 
 ```bash
 bash scripts/uninstall.sh --purge --yes
+npm run nfi:uninstall:purge:dry-run
+bun run nfi:uninstall:purge:dry-run
 ```
 
 Destructive Purge removes Compose volumes and the generated `.runtime`
-directory. Add `--remove-image` only when you also want to remove the local
-`nfi-engine:local` image. Add `--backup-dir .runtime-backups/manual` before
-purge when you want a copy of the generated runtime directory first.
+directory. The npm and Bun commands above are dry-run previews only. Add
+`--remove-image` only when you also want to remove the local `nfi-engine:local`
+image. Add `--backup-dir .runtime-backups/manual` before purge when you want a
+copy of the generated runtime directory first.
 
 The script prints the exact removal scope before it acts. It does not scan the
 filesystem outside the configured runtime directory and known Compose resources.

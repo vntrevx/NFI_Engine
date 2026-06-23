@@ -35,6 +35,8 @@ def test_backtest_cli_writes_json_summary_when_spot_config_is_valid(tmp_path: Pa
     assert '"summary"' in output
     assert '"config_digest"' in output
     assert '"strategy"' in output
+    assert '"timeline"' in output
+    assert '"payload_bytes"' in output
     assert '"simulator"' not in output
 
 

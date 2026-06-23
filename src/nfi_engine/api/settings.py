@@ -15,7 +15,7 @@ MIN_PRODUCTION_TOKEN_LENGTH: Final = 16
 
 
 def resolve_runtime_settings(config_path: Path | None = None) -> RuntimeSettings:
-    selected_path = config_path or _env_config_path()
+    selected_path = resolve_runtime_config_path(config_path)
     settings = (
         load_runtime_settings(selected_path) if selected_path is not None else RuntimeSettings()
     )
@@ -35,6 +35,10 @@ def validate_api_auth_settings(settings: RuntimeSettings) -> None:
             code=ApiErrorCode.API_WEAK_AUTH_VALUE,
             message="non-local API environments require a strong bearer token",
         )
+
+
+def resolve_runtime_config_path(config_path: Path | None = None) -> Path | None:
+    return config_path or _env_config_path()
 
 
 def _env_config_path() -> Path | None:

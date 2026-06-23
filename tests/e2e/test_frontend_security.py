@@ -137,7 +137,9 @@ async def test_csrf_blocks_mutating_settings_request_when_header_is_missing() ->
         ("/api/v1/backup/restore", None),
         ("/api/v1/start", None),
         ("/api/v1/pause", None),
+        ("/api/v1/resume", None),
         ("/api/v1/stop", None),
+        ("/api/v1/runtime/control", {"command": "start"}),
     ],
 )
 async def test_csrf_blocks_all_write_router_endpoints(
@@ -196,7 +198,13 @@ async def test_read_only_mode_blocks_mutations_but_keeps_inspection_available() 
         backup_restore = await client.post("/api/v1/backup/restore", headers=headers, json={})
         runtime_start = await client.post("/api/v1/start", headers=headers)
         runtime_pause = await client.post("/api/v1/pause", headers=headers)
+        runtime_resume = await client.post("/api/v1/resume", headers=headers)
         runtime_stop = await client.post("/api/v1/stop", headers=headers)
+        runtime_control = await client.post(
+            "/api/v1/runtime/control",
+            headers=headers,
+            json={"command": "start"},
+        )
         audit = await client.get("/api/v1/security/audit")
 
     # Then: reads work, writes fail server-side, and security audit events are visible.
@@ -209,7 +217,9 @@ async def test_read_only_mode_blocks_mutations_but_keeps_inspection_available() 
         backup_restore,
         runtime_start,
         runtime_pause,
+        runtime_resume,
         runtime_stop,
+        runtime_control,
     ):
         error = ErrorEnvelope.model_validate_json(response.content)
         assert response.status_code == 403

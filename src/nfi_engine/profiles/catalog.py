@@ -4,6 +4,7 @@ from typing import Final
 
 from nfi_engine.config import RuntimeSettings
 from nfi_engine.domain import TradingMode
+from nfi_engine.exchange import get_exchange_profile
 from nfi_engine.profiles.errors import ProfileError, ProfileErrorCode
 from nfi_engine.profiles.models import OperatorProfile
 
@@ -27,6 +28,7 @@ def list_operator_profiles() -> tuple[OperatorProfile, ...]:
             requires_testnet=True,
             allow_live_trading=False,
             read_only=False,
+            exchange_id="bybit",
         ),
         OperatorProfile(
             name="backtest-only",
@@ -60,8 +62,11 @@ def get_operator_profile(name: str) -> OperatorProfile:
 def default_profile_name(settings: RuntimeSettings) -> str:
     if settings.ui.read_only:
         return "readonly-debug"
-    if settings.exchange.name == "bybit" and settings.exchange.testnet:
-        return "bybit-testnet"
+    exchange_profile = get_exchange_profile(settings.exchange.name)
+    if settings.exchange.testnet and exchange_profile is not None:
+        for profile in list_operator_profiles():
+            if profile.exchange_id == exchange_profile.exchange_id and profile.requires_testnet:
+                return profile.name
     if settings.paper_run.enabled:
         return "local-paper"
     return "backtest-only"

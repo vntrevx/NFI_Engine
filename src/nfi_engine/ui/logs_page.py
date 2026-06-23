@@ -81,12 +81,19 @@ def render_logs_body(
 
 def _log_row(log: LogEntryResponse) -> str:
     severity_class = "severity-error" if log.level.value == "ERROR" else ""
+    full_time = log.at.isoformat()
+    display_time = _compact_log_time(full_time)
     return f"""
 <tr>
-  <td>{escape(log.at.isoformat())}</td>
+  <td class="log-time" title="{escape(full_time)}">{escape(display_time)}</td>
   <td class="{severity_class}">{escape(log.level.value)}</td>
-  <td>{escape(log.code)}</td>
+  <td class="machine-code">{escape(log.code)}</td>
   <td data-testid="correlation-id">{escape(log.correlation_id)}</td>
   <td>{escape(log.safe_summary)}</td>
 </tr>
 """
+
+
+def _compact_log_time(value: str) -> str:
+    without_fraction = value.split(".", maxsplit=1)[0]
+    return without_fraction.replace("T", " ", 1)[:19]

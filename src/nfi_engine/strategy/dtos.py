@@ -20,6 +20,21 @@ class RunMode(StrEnum):
     LIVE = "live"
 
 
+@unique
+class CallbackSupportLevel(StrEnum):
+    SUPPORTED = "supported"
+    PARTIAL = "partial"
+    EXCLUDED = "excluded"
+
+
+@dataclass(frozen=True, slots=True)
+class StrategyCallbackSupport:
+    name: str
+    level: CallbackSupportLevel
+    detected: bool
+    reason: str
+
+
 @dataclass(frozen=True, slots=True)
 class StrategyMetadata:
     pair: TradingPair
@@ -69,3 +84,4 @@ class StrategyInspection:
     can_short: bool
     timeframe: str
     detected_callbacks: tuple[str, ...]
+    callback_support: tuple[StrategyCallbackSupport, ...]

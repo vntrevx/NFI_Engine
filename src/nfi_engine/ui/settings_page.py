@@ -1,26 +1,18 @@
 from __future__ import annotations
 
 from html import escape
-from typing import Final
 
-from nfi_engine.config import Locale, RuntimeSettings
+from nfi_engine.config import RuntimeSettings
 from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.ui.i18n import localize
 from nfi_engine.ui.i18n_keys import MessageKey
 from nfi_engine.ui.pairlist import render_pairlist_panel
 from nfi_engine.ui.readiness import render_readiness_panel
+from nfi_engine.ui.runtime_controls import render_runtime_controls
+from nfi_engine.ui.settings_data_lifecycle import render_settings_data_lifecycle_panel
 from nfi_engine.ui.settings_fields import render_settings_fields
-
-SETUP_OPTION_LABELS: Final[dict[str, MessageKey]] = {
-    "aggressive": MessageKey.SETUP_OPTION_AGGRESSIVE,
-    "balanced": MessageKey.SETUP_OPTION_BALANCED,
-    "conservative": MessageKey.SETUP_OPTION_CONSERVATIVE,
-    "futures": MessageKey.SETUP_OPTION_FUTURES,
-    "live": MessageKey.SETUP_OPTION_LIVE,
-    "paper": MessageKey.SETUP_OPTION_PAPER,
-    "spot": MessageKey.SETUP_OPTION_SPOT,
-    "testnet": MessageKey.SETUP_OPTION_TESTNET,
-}
+from nfi_engine.ui.settings_update import render_settings_update_panel
+from nfi_engine.ui.setup_wizard import render_setup_wizard
 
 
 def render_settings_body(
@@ -31,9 +23,12 @@ def render_settings_body(
 ) -> str:
     locale = settings.ui.locale
     rows = render_settings_fields(settings)
-    setup_panel = _setup_preview_panel(settings, locale=locale)
+    setup_panel = render_setup_wizard(settings, locale=locale)
+    update_panel = render_settings_update_panel(settings=settings)
     readiness_panel = render_readiness_panel(readiness, locale=locale)
+    runtime_controls = render_runtime_controls(settings=settings, locale=locale)
     pairlist_panel = render_pairlist_panel(settings, read_only=settings.ui.read_only)
+    lifecycle_panel = render_settings_data_lifecycle_panel(settings=settings)
     readonly_panel = _readonly_panel(settings)
     disabled = _disabled_attrs(settings)
     return f"""
@@ -72,8 +67,11 @@ def render_settings_body(
       </div>
     </section>
     {readonly_panel}
+    {update_panel}
     {readiness_panel}
+    {runtime_controls}
     {pairlist_panel}
+    {lifecycle_panel}
     <section>
       <h2>{localize(locale, MessageKey.SETTINGS_SAFETY_GATES)}</h2>
       <div class="lock" data-testid="live-trading-locked">
@@ -83,70 +81,11 @@ def render_settings_body(
         <button data-testid="restore-button"{disabled} type="button">
           {localize(locale, MessageKey.RESTORE)}
         </button>
-        <button data-testid="start-button"{disabled} type="button">
-          {localize(locale, MessageKey.START)}
-        </button>
-        <button data-testid="stop-button"{disabled} type="button">
-          {localize(locale, MessageKey.STOP)}
-        </button>
       </div>
     </section>
   </div>
 </main>
 """
-
-
-def _setup_preview_panel(settings: RuntimeSettings, *, locale: Locale) -> str:
-    intent = "testnet" if settings.exchange.testnet else "live"
-    return f"""
-      <div data-testid="setup-preview-panel" class="setup-preview">
-        <h2>{localize(locale, MessageKey.SETUP_TITLE)}</h2>
-        <form data-testid="setup-form" class="field-grid">
-          <label for="setup-exchange">{localize(locale, MessageKey.SETUP_EXCHANGE)}</label>
-          <input id="setup-exchange" name="exchange" value="{escape(settings.exchange.name)}">
-          <span class="field-note">{localize(locale, MessageKey.SETTINGS_RELOAD_REQUIRED)}</span>
-          <label for="setup-trading-mode">{localize(locale, MessageKey.SETUP_MARKET_MODE)}</label>
-          <select id="setup-trading-mode" name="trading_mode">
-            {_option(locale=locale, value=settings.exchange.trading_mode.value, option="spot")}
-            {_option(locale=locale, value=settings.exchange.trading_mode.value, option="futures")}
-          </select>
-          <span class="field-note">{localize(locale, MessageKey.SETTINGS_RELOAD_REQUIRED)}</span>
-          <label for="setup-intent">{localize(locale, MessageKey.SETUP_INTENT)}</label>
-          <select id="setup-intent" name="intent">
-            {_option(locale=locale, value=intent, option="paper")}
-            {_option(locale=locale, value=intent, option="testnet")}
-            {_option(locale=locale, value=intent, option="live")}
-          </select>
-          <span class="field-note">{localize(locale, MessageKey.SETUP_SAFETY_GATED)}</span>
-          <label for="setup-risk-preset">{localize(locale, MessageKey.SETUP_RISK_PRESET)}</label>
-          <select id="setup-risk-preset" name="risk_preset">
-            {_option(locale=locale, value="balanced", option="conservative")}
-            {_option(locale=locale, value="balanced", option="balanced")}
-            {_option(locale=locale, value="balanced", option="aggressive")}
-          </select>
-          <span class="field-note">{localize(locale, MessageKey.SETUP_PREVIEW_ONLY)}</span>
-          <label for="setup-api-key">{localize(locale, MessageKey.SETUP_API_KEY)}</label>
-          <input id="setup-api-key" name="api_key" type="password" autocomplete="off">
-          <span class="field-note">{localize(locale, MessageKey.SETUP_WRITE_ONLY)}</span>
-          <label for="setup-api-secret">{localize(locale, MessageKey.SETUP_API_SECRET)}</label>
-          <input id="setup-api-secret" name="api_secret" type="password" autocomplete="off">
-          <span class="field-note">{localize(locale, MessageKey.SETUP_WRITE_ONLY)}</span>
-        </form>
-        <div class="toolbar">
-          <button type="button" data-testid="setup-preview-button">
-            {localize(locale, MessageKey.SETUP_PREVIEW_SETUP)}
-          </button>
-        </div>
-        <pre class="state setup-output" data-testid="setup-preview-state">\
-{localize(locale, MessageKey.SETUP_NO_PREVIEW)}</pre>
-      </div>
-"""
-
-
-def _option(*, locale: Locale, value: str, option: str) -> str:
-    selected = " selected" if value == option else ""
-    label = localize(locale, SETUP_OPTION_LABELS[option])
-    return f'<option value="{escape(option)}"{selected}>{escape(label)}</option>'
 
 
 def _readonly_panel(settings: RuntimeSettings) -> str:

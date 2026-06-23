@@ -24,6 +24,10 @@ def test_install_script_dry_run_generates_runtime_config_and_redacted_output(
         "install-key",
         "--api-secret",
         "install-secret",
+        "--host-port",
+        "18113",
+        "--project-name",
+        "nfi-engine-test",
         "--dry-run",
     ]
     result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
@@ -50,9 +54,15 @@ def test_install_script_dry_run_generates_runtime_config_and_redacted_output(
     assert result.returncode == 0, result.stderr
     assert validation.returncode == 0, validation.stderr
     assert "install_plan=dry-run" in result.stdout
-    assert "url=http://127.0.0.1:18080" in result.stdout
+    assert "url=http://127.0.0.1:18113" in result.stdout
+    assert "host_port=18113" in result.stdout
+    assert "compose_project=nfi-engine-test" in result.stdout
     assert "intent=testnet" in result.stdout
     assert f"login_token_file={env_file}" in result.stdout
+    assert (
+        f"uninstall=bash scripts/uninstall.sh --yes --runtime-dir {runtime_dir} "
+        "--project-name nfi-engine-test"
+    ) in result.stdout
     assert "install-key" not in result.stdout
     assert "install-secret" not in result.stdout
     assert config.exists()
@@ -64,26 +74,67 @@ def test_install_script_dry_run_generates_runtime_config_and_redacted_output(
 def test_install_script_is_docker_first_and_uses_safe_runtime_files() -> None:
     script = (PROJECT_ROOT / "scripts/install.sh").read_text(encoding="utf-8")
 
-    assert "docker compose up --build -d api" in script
-    assert "docker compose run --rm cli nfi-engine config validate" in script
+    assert 'docker compose --project-name "$project_name" up --build -d api' in script
+    assert (
+        'docker compose --project-name "$project_name" run --rm cli nfi-engine config validate'
+        in script
+    )
+    assert "NFI_ENGINE_HOST_PORT" in script
+    assert "NFI_ENGINE_RUNTIME_CONFIG_DIR" in script
+    assert "NFI_ENGINE_RUNTIME_ENV_FILE" in script
     assert "chmod 600" in script
     assert ".runtime" in script
     assert "curl | bash" not in script
 
 
-def test_final_smoke_records_protected_dashboard_auth_boundary() -> None:
-    # Given: the final smoke script used as the Docker first-run release gate.
-    script = (PROJECT_ROOT / "scripts/final_smoke.sh").read_text(encoding="utf-8")
+def test_install_script_refuses_invalid_host_port(tmp_path: Path) -> None:
+    # Given: an invalid host port for an isolated RC deployment.
+    runtime_dir = tmp_path / "runtime"
+    command: Final = [
+        "bash",
+        "scripts/install.sh",
+        "--yes",
+        "--paper",
+        "--testnet",
+        "--runtime-dir",
+        str(runtime_dir),
+        "--host-port",
+        "not-a-port",
+        "--dry-run",
+    ]
 
-    # When/Then: it records both the unauthenticated denial and authenticated success.
-    assert "final-dashboard-snapshot-unauthenticated.status" in script
-    assert "final-dashboard-snapshot-unauthenticated.json" in script
-    expected_denial_check: Final = (
-        '[[ "${unauth_status}" == "401" || "${unauth_status}" == "403" ]]'
-    )
-    assert expected_denial_check in script
-    assert "Authorization: Bearer ${api_token}" in script
-    assert "final-dashboard-snapshot.json" in script
+    # When: the installer parses the request.
+    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
+
+    # Then: it refuses before generating runtime files.
+    assert result.returncode != 0
+    assert "INSTALL_INVALID_HOST_PORT" in result.stderr
+    assert not runtime_dir.exists()
+
+
+def test_compose_publishes_api_on_configurable_loopback_port() -> None:
+    # Given: the Compose stack used by the one-line installer.
+    compose_text = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+
+    # When/Then: host exposure stays loopback-only and the host port is overridable.
+    assert '"127.0.0.1:${NFI_ENGINE_HOST_PORT:-18080}:18080"' in compose_text
+    assert "${NFI_ENGINE_RUNTIME_ENV_FILE:-.runtime/docker.env}" in compose_text
+    assert "${NFI_ENGINE_RUNTIME_CONFIG_DIR:-./.runtime/config}:/config:ro" in compose_text
+    assert "0.0.0.0:18080:18080" not in compose_text
+
+
+def test_pi4_rc_profile_script_has_reversible_deployment_contract() -> None:
+    # Given: the Pi4 RC profile script shipped for hardware deployment checks.
+    script = (PROJECT_ROOT / "scripts/pi4_rc_profile.sh").read_text(encoding="utf-8")
+
+    # When/Then: it checks the non-destructive gates and prints rollback receipts.
+    assert "PI4_CPU_MAX_REDUCED" in script
+    assert "PI4_THROTTLED" in script
+    assert "PI4_COMPOSE_PUBLIC_BIND" in script
+    assert "PI4_DOCKER_LOG_UNBOUNDED" in script
+    assert "rollback_safe_uninstall" in script
+    assert "systemctl" not in script
+    assert "/boot/firmware/config.txt" not in script
 
 
 def test_uninstall_script_safe_dry_run_preserves_runtime_and_data(
@@ -264,8 +315,8 @@ def test_uninstall_script_uses_compose_down_without_broad_filesystem_scans() -> 
     script = (PROJECT_ROOT / "scripts/uninstall.sh").read_text(encoding="utf-8")
 
     # When/Then: safe and purge paths are scoped to Compose and known runtime paths.
-    assert "docker compose down --remove-orphans" in script
-    assert "docker compose down --volumes --remove-orphans" in script
+    assert 'docker compose --project-name "$project_name" down --remove-orphans' in script
+    assert 'docker compose --project-name "$project_name" down --volumes --remove-orphans' in script
     assert 'docker volume rm "${project_name}_nfi-data" "${project_name}_nfi-logs"' in script
     assert ".nfi-engine-runtime" in script
     assert 'rm -rf -- "$runtime_dir"' in script

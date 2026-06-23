@@ -65,3 +65,30 @@ def test_preflight_cli_blocks_public_api_bind() -> None:
     assert result.returncode == 1
     assert "PREFLIGHT_BLOCKED" in result.stdout
     assert "PUBLIC_BIND_NOT_ALLOWED" in result.stdout
+
+
+def test_preflight_cli_shows_live_hardening_blockers() -> None:
+    # Given: a confirmed live config that is still unsafe for real orders.
+    command: Final = [
+        "uv",
+        "run",
+        "nfi-engine",
+        "preflight",
+        "check",
+        "--profile",
+        "bybit-testnet",
+        "--config",
+        "tests/fixtures/config/live-real-orders.yaml",
+    ]
+
+    # When: preflight runs through the operator CLI.
+    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
+
+    # Then: the live lock and missing hardening gates are visible to the operator.
+    assert result.returncode == 1
+    assert "PREFLIGHT_BLOCKED" in result.stdout
+    assert "LIVE_TRADING_OUT_OF_SCOPE" in result.stdout
+    assert "LIVE_PERMISSION_HARDENING" in result.stdout
+    assert "LIVE_RECONCILIATION_HARDENING" in result.stdout
+    assert "LIVE_CIRCUIT_BREAKER_HARDENING" in result.stdout
+    assert "LIVE_STRATEGY_HARDENING" in result.stdout

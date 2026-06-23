@@ -7,6 +7,7 @@ from typing import ClassVar
 from pydantic import BaseModel, ConfigDict
 
 from nfi_engine import __version__
+from nfi_engine.api.log_redaction import redacted_support_logs
 from nfi_engine.config import FieldMetadata, LogLevel, RuntimeSettings, frontend_metadata
 from nfi_engine.events import REDACTED_TEXT, EventCode
 from nfi_engine.observability import new_correlation_id
@@ -298,7 +299,7 @@ def support_bundle_response(
         generated_at=datetime.now(UTC),
         engine_version=__version__,
         redacted_config=config_current_response(settings),
-        logs=logs,
+        logs=redacted_support_logs(settings=settings, logs=logs),
     )
 
 

@@ -153,6 +153,27 @@ async def test_create_app_dashboard_reads_seeded_persistence_rows(
     )
 
 
+async def test_persistence_dashboard_store_initializes_database_once(
+    database: PersistenceDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    initialize_calls = 0
+    original_initialize = PersistenceDatabase.initialize
+
+    async def counted_initialize(self: PersistenceDatabase) -> None:
+        nonlocal initialize_calls
+        initialize_calls += 1
+        await original_initialize(self)
+
+    monkeypatch.setattr(PersistenceDatabase, "initialize", counted_initialize)
+    store = PersistenceDashboardReadStore(database)
+
+    await store.read_models()
+    await store.read_models()
+
+    assert initialize_calls == 1
+
+
 def _trade(trade_id: str, state: TradeState, opened_at: datetime) -> TradeRecord:
     closed_at, exit_price, profit = _trade_close_values(state, opened_at)
     return TradeRecord(

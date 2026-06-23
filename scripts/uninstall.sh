@@ -18,6 +18,19 @@ need_command() {
   command -v "$1" >/dev/null 2>&1 || die "UNINSTALL_MISSING_COMMAND: $1"
 }
 
+require_docker_compose() {
+  need_command docker
+  local compose_output
+  if ! compose_output="$(docker compose version 2>&1)"; then
+    printf 'UNINSTALL_DOCKER_UNAVAILABLE\n' >&2
+    if [ -n "$compose_output" ]; then
+      printf '%s\n' "$compose_output" >&2
+    fi
+    printf 'install_hint=Install Docker with Compose v2 and verify `docker compose version`; then re-run this command.\n' >&2
+    exit 1
+  fi
+}
+
 guard_runtime_dir() {
   case "$runtime_dir" in
     "" | "/" | "." | "./")
@@ -46,7 +59,7 @@ print_plan() {
   printf 'compose_project=%s\n' "$project_name"
   if [ "$purge" -eq 1 ]; then
     printf 'mode=purge\n'
-    printf 'compose_action=docker compose down --volumes --remove-orphans\n'
+    printf 'compose_action=docker compose --project-name %s down --volumes --remove-orphans\n' "$project_name"
     printf 'remove_runtime=%s\n' "$runtime_dir"
     printf 'remove_volumes=nfi-data,nfi-logs\n'
     if [ "$remove_image" -eq 1 ]; then
@@ -62,7 +75,7 @@ print_plan() {
     return
   fi
   printf 'mode=safe\n'
-  printf 'compose_action=docker compose down --remove-orphans\n'
+  printf 'compose_action=docker compose --project-name %s down --remove-orphans\n' "$project_name"
   printf 'preserve_runtime=%s\n' "$runtime_dir"
   printf 'preserve_volumes=nfi-data,nfi-logs\n'
 }
@@ -128,16 +141,15 @@ if [ "$dry_run" -eq 1 ]; then
   exit 0
 fi
 
-need_command docker
 export COMPOSE_PROJECT_NAME="$project_name"
-docker compose version >/dev/null
+require_docker_compose
 
 if [ "$purge" -eq 1 ]; then
   backup_runtime
   if [ "$remove_image" -eq 1 ]; then
-    docker compose down --volumes --remove-orphans --rmi local
+    docker compose --project-name "$project_name" down --volumes --remove-orphans --rmi local
   else
-    docker compose down --volumes --remove-orphans
+    docker compose --project-name "$project_name" down --volumes --remove-orphans
   fi
   remove_known_volumes
   rm -rf -- "$runtime_dir"
@@ -145,5 +157,5 @@ if [ "$purge" -eq 1 ]; then
   exit 0
 fi
 
-docker compose down --remove-orphans
+docker compose --project-name "$project_name" down --remove-orphans
 printf 'uninstall=stopped\n'

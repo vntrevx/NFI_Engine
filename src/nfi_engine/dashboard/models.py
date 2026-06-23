@@ -9,6 +9,15 @@ from nfi_engine.paper import BotState
 
 
 @dataclass(frozen=True, slots=True)
+class DashboardAction:
+    code: str
+    severity: str
+    title: str
+    detail: str
+    target: str
+
+
+@dataclass(frozen=True, slots=True)
 class DashboardEquityPoint:
     at: datetime
     equity: Decimal
@@ -91,6 +100,7 @@ class DashboardSnapshot:
     bot_state: BotState
     trading_mode: str
     exchange: str
+    actions: tuple[DashboardAction, ...]
     readiness: DashboardReadiness
     pairlist: DashboardPairlistSummary
     equity_points: tuple[DashboardEquityPoint, ...]

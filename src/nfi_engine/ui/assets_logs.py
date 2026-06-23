@@ -8,15 +8,16 @@ const rows = document.querySelector('[data-testid="log-rows"]');
 const detail = document.querySelector('[data-testid="error-detail"]');
 const severity = document.querySelector('[data-testid="severity-filter"]');
 const search = document.querySelector('[data-testid="error-search"]');
-const safe = (value) => String(value).replace(/[&<>]/g, (c) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;'
+const safe = (value) => String(value).replace(/[&<>"']/g, (c) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[c]));
+const compactTime = (value) => String(value).split('.')[0].replace('T', ' ').slice(0, 19);
 function renderLogs(items) {
   rows.innerHTML = items.map((item) => `
     <tr>
-      <td>${safe(item.at)}</td>
+      <td class="log-time" title="${safe(item.at)}">${safe(compactTime(item.at))}</td>
       <td class="${item.level === 'ERROR' ? 'severity-error' : ''}">${safe(item.level)}</td>
-      <td>${safe(item.code)}</td>
+      <td class="machine-code">${safe(item.code)}</td>
       <td data-testid="correlation-id">${safe(item.correlation_id)}</td>
       <td>${safe(item.safe_summary)}</td>
     </tr>`).join('');

@@ -21,6 +21,10 @@ def nfi_check(strategy: Annotated[str, typer.Option("--strategy")]) -> None:
     sys.stdout.write(f"full_x7_parity={str(result.full_x7_parity).lower()}\n")
     sys.stdout.write(f"upstream_sha={result.upstream_sha}\n")
     sys.stdout.write(f"detected_callbacks={','.join(result.detected_callbacks)}\n")
+    sys.stdout.write(f"supported_callbacks={','.join(result.supported_callbacks)}\n")
+    sys.stdout.write(f"partial_callbacks={','.join(result.partial_callbacks)}\n")
+    sys.stdout.write(f"excluded_callbacks={','.join(result.excluded_callbacks)}\n")
+    sys.stdout.write(f"excluded_surfaces={','.join(result.excluded_surfaces)}\n")
     sys.stdout.write(f"unsupported_surfaces={','.join(result.unsupported_surfaces)}\n")
 
 

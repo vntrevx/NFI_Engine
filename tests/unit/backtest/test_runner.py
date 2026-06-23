@@ -17,8 +17,12 @@ from nfi_engine.backtest import (
 )
 from nfi_engine.backtest.config import parse_timerange
 from nfi_engine.data import CandleBatch
-from nfi_engine.domain import Candle, Price, Quantity, TradingMode, TradingPair
-from nfi_engine.strategy import FreqtradeStrategyAdapter, RequiredFreqtradeStrategy
+from nfi_engine.domain import Candle, PositionSide, Price, Quantity, TradingMode, TradingPair
+from nfi_engine.strategy import (
+    FreqtradeStrategyAdapter,
+    RequiredFreqtradeStrategy,
+    TimelineSurface,
+)
 from tests.fixtures.strategies.backtest_cases import (
     EveryCandleLongStrategy,
     LongExitStrategy,
@@ -70,6 +74,30 @@ def test_run_backtest_closes_single_spot_long_when_exit_signal_arrives() -> None
     assert result.trades[0].entry_price == ONE_HUNDRED
     assert result.trades[0].exit_price == ONE_HUNDRED_TEN
     assert result.summary.total_profit == Decimal("1.0")
+
+
+def test_run_backtest_records_compact_strategy_timeline() -> None:
+    # Given
+    request = _request(strategy=LongExitStrategy(), settings=_spot_settings())
+
+    # When
+    result = run_backtest(request)
+
+    # Then
+    timeline = result.timeline
+    assert timeline.surface is TimelineSurface.BACKTEST
+    assert timeline.truncated is False
+    assert len(timeline.steps) == 3
+    assert timeline.steps[0].indicator_runs == 1
+    assert timeline.steps[0].entry_signals == 1
+    assert timeline.steps[0].entry_sides == (PositionSide.LONG,)
+    assert timeline.steps[0].entry_reasons == ("unit-long",)
+    assert timeline.steps[0].opened_orders == 1
+    assert timeline.steps[0].stake_amount == TEN
+    assert timeline.steps[0].leverage == ONE
+    assert timeline.steps[2].exit_signals == 1
+    assert timeline.steps[2].exit_sides == (PositionSide.LONG,)
+    assert timeline.steps[2].closed_orders == 1
 
 
 def test_run_backtest_closes_single_futures_short_when_exit_signal_arrives() -> None:
@@ -185,6 +213,13 @@ def test_result_to_json_payload_includes_required_schema_sections() -> None:
     assert payload["metadata"]["engine_version"] == "0.1.0"
     assert payload["metadata"]["dependency_lock_hash"] == "lock-unit-hash"
     assert payload["metadata"]["created_at"] == "2026-01-01T00:00:00+00:00"
+    assert payload["timeline"]["surface"] == "backtest"
+    assert payload["timeline"]["payload_bytes"] < 2_000
+    assert payload["timeline"]["steps"][0]["entry_signals"] == 1
+    assert payload["timeline"]["steps"][0]["entry_sides"] == ["long"]
+    assert payload["timeline"]["steps"][0]["entry_reasons"] == ["unit-long"]
+    assert "frame" not in payload["timeline"]["steps"][0]
+    assert "rows" not in payload["timeline"]["steps"][0]
 
 
 def test_parse_timerange_raises_typed_error_when_input_is_malformed() -> None:

@@ -16,7 +16,6 @@ from nfi_engine.api.models import (
     ErrorLookupResponse,
     LogListResponse,
     PingResponse,
-    StateResponse,
     SupportBundleResponse,
 )
 from nfi_engine.api.settings import validate_api_auth_settings
@@ -41,6 +40,13 @@ class SessionPayload(BaseModel):
     role: str
     csrf_token: str
     expires_at: datetime
+
+
+class RuntimeControlPayload(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
+
+    state: str
+    new_entries_allowed: bool
 
 
 @pytest.mark.anyio
@@ -78,15 +84,29 @@ async def test_control_endpoints_apply_state_transitions_when_authorized() -> No
     session = await _login(client)
     headers = _csrf_headers(session)
 
-    # When: start, pause, and stop commands are issued.
+    # When: start, pause, resume, and stop commands are issued.
     started = await client.post("/api/v1/start", headers=headers)
     paused = await client.post("/api/v1/pause", headers=headers)
+    resumed = await client.post("/api/v1/resume", headers=headers)
     stopped = await client.post("/api/v1/stop", headers=headers)
+    current = await client.get("/api/v1/runtime/control", headers=_auth_headers())
 
-    # Then: each command returns the observable bot state.
-    assert StateResponse.model_validate_json(started.content).state == "running"
-    assert StateResponse.model_validate_json(paused.content).state == "paused"
-    assert StateResponse.model_validate_json(stopped.content).state == "stopped"
+    # Then: each command returns the observable runtime-control state contract.
+    assert RuntimeControlPayload.model_validate_json(started.content).state == "running"
+    assert RuntimeControlPayload.model_validate_json(started.content).new_entries_allowed is True
+    assert RuntimeControlPayload.model_validate_json(paused.content).state == "paused"
+    assert RuntimeControlPayload.model_validate_json(paused.content).new_entries_allowed is False
+    assert RuntimeControlPayload.model_validate_json(resumed.content).state == "running"
+    assert RuntimeControlPayload.model_validate_json(resumed.content).new_entries_allowed is True
+    assert RuntimeControlPayload.model_validate_json(stopped.content).state in {
+        "stopping",
+        "stopped",
+    }
+    assert RuntimeControlPayload.model_validate_json(stopped.content).new_entries_allowed is False
+    assert RuntimeControlPayload.model_validate_json(current.content).state in {
+        "stopping",
+        "stopped",
+    }
 
 
 @pytest.mark.anyio

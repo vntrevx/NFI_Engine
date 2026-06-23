@@ -1,0 +1,45 @@
+engine:
+  environment: local
+  live_trading: false
+  live_trading_confirmed: false
+exchange:
+  name: simulator
+  trading_mode: futures
+  margin_mode: isolated
+  testnet: true
+strategy:
+  name: X7NativeStrategy
+  module: nfi_engine.strategy.nfi_x7:X7NativeStrategy
+database:
+  url: sqlite+aiosqlite:///data/nfi_engine.sqlite3
+risk:
+  stake_usdt: "10"
+  max_daily_loss_pct: "0.05"
+  leverage: "3"
+  max_leverage: "3"
+  liquidation_buffer: "0.05"
+  max_open_trades: "3"
+  stoploss_pct: "0.10"
+  minimal_roi: "0.03"
+  cooldown_seconds: 0
+  locked_pairs: ""
+backtest:
+  timerange: null
+  starting_balance_usdt: "1000"
+  stoploss_pct: "0.10"
+  fee_rate: "0.001"
+  slippage_rate: "0"
+  max_open_trades: "3"
+paper_run:
+  enabled: true
+  max_events: 100
+api:
+  host: 127.0.0.1
+  port: 18080
+  csrf_enabled: true
+ui:
+  enabled: true
+  read_only: false
+logging:
+  level: INFO
+  json_logs: false

@@ -43,7 +43,25 @@ letting UI code reach into storage rows or raw config dictionaries.
 
 ## Test And Evidence Rules
 
-Use focused tests first, then run the broader gate touched by your change:
+Use focused tests first, then run the broader gate touched by your change. The
+local shell surface is intentionally lightweight:
+
+New behavioral gates and failure modes use TDD: capture the focused failing
+proof before production edits, then keep the closest useful pytest layer green.
+Tests-after is acceptable only for docs/status/evidence-only updates where no
+runtime behavior changes. Pytest remains the main automated test surface; ruff,
+basedpyright, CLI stdout, HTTP calls, browser QA, Docker smoke, and Pi4 shell
+receipts are manual QA and evidence surfaces that support, but do not replace,
+the behavioral test.
+
+```bash
+bash scripts/quality_gate.sh --docs-only
+bash scripts/quality_gate.sh --coverage-only
+bash scripts/quality_gate.sh --strict
+```
+
+`--docs-only` is the fast default for docs/governance edits. `--strict` runs the
+existing full local gate:
 
 ```bash
 uv run ruff format --check .
@@ -52,12 +70,40 @@ uv run basedpyright
 uv run pytest -q
 ```
 
+`--coverage-only` is a focused config/domain coverage smoke using existing
+pytest-cov and coverage.py settings. It fails below `NFI_ENGINE_COVERAGE_MIN`
+(default 80) without adding dependencies or heavyweight services.
+
 User-visible or hot-path changes need manual evidence under `.omo/evidence/`.
 For performance work, include benchmark evidence with machine metadata, workload
 label, measured result, and whether a public comparison claim is allowed. Normal
 M2 contribution work must not require a local Freqtrade install.
 See [performance.md](performance.md) for the M2 benchmark command and regression
 gate.
+
+## Quality Budget Review
+
+Coverage policy is touched-code coverage, not a vanity global percentage. New or
+changed production behavior must have a direct test at the closest useful layer:
+unit tests for pure rules, integration tests for adapters/storage, and e2e tests
+for CLI/API/UI surfaces. When a touched package already has coverage tooling,
+run the matching pytest-cov slice with a focused fail-under or record why that
+slice is not meaningful yet.
+
+Maintainability has the same budget pressure as tests. Treat 250 pure LOC as the
+split pressure point for hand-edited source and test files: do not split files
+solely for vanity, but do not add new behavior to an oversized file without
+extracting the cohesive unit you are touching.
+
+Performance Budget Review for hot-path changes:
+
+- no repeated config parse in loops or request paths.
+- no unbounded DB read.
+- no unbounded candle/frame materialization.
+- no UI payload growth without a cap.
+- no new dependency without size/startup justification.
+- no public speed, parity, or Pi4 claim without matching hardware, command,
+  dataset, and budget evidence.
 
 ## Documentation Rules
 
@@ -71,5 +117,11 @@ Docs should make the simplest safe path obvious:
 - Use Logs for error codes, correlation IDs, and support report export.
 - Use `bash scripts/uninstall.sh --yes` for Safe Uninstall.
 - Use `bash scripts/uninstall.sh --purge --yes` only for Destructive Purge.
+- For public-facing docs and release wording, apply `docs/release-wording.md`:
+  - Run `uv run python scripts/release_wording_scan.py` and require `violations=0`.
+  - Keep release claims aligned to evidence paths under `.omo/evidence` or `.omo/ulw-loop/evidence`.
+  - Rewrite any blocked phrasing before docs merge.
+  - Treat "native NFI-shaped X7 runtime", "superior/better", "parity", and "live-money" claims as release-critical until evidence-backed.
+  - Do not add milestone-ready announcements that imply guarantee, completeness, or unproved profit behavior.
 
 Manual developer commands belong after the operator path, not before it.

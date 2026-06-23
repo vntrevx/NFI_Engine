@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from nfi_engine.dashboard.models import (
+    DashboardAction,
     DashboardEquityPoint,
     DashboardError,
     DashboardOpenPosition,
@@ -12,7 +13,7 @@ from nfi_engine.dashboard.models import (
     DashboardRecentTrade,
     DashboardSnapshot,
 )
-from nfi_engine.dashboard.service import build_dashboard_snapshot
+from nfi_engine.dashboard.service import build_dashboard_actions, build_dashboard_snapshot
 from nfi_engine.dashboard.store import (
     DashboardReadStore,
     PersistenceDashboardReadStore,
@@ -21,6 +22,7 @@ from nfi_engine.dashboard.store import (
 from nfi_engine.dashboard.summary import DashboardOperatorSummary, summarize_dashboard_read_models
 
 __all__ = [
+    "DashboardAction",
     "DashboardEquityPoint",
     "DashboardError",
     "DashboardOpenPosition",
@@ -35,6 +37,7 @@ __all__ = [
     "DashboardSnapshot",
     "PersistenceDashboardReadStore",
     "StaticDashboardReadStore",
+    "build_dashboard_actions",
     "build_dashboard_snapshot",
     "summarize_dashboard_read_models",
 ]

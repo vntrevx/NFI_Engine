@@ -7,6 +7,7 @@ from decimal import Decimal
 from nfi_engine.data import CandleBatch
 from nfi_engine.domain import PositionSide, TradingMode, TradingPair
 from nfi_engine.strategy import FreqtradeStrategyAdapter
+from nfi_engine.strategy.timeline import StrategyTimeline
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,3 +119,4 @@ class BacktestResult:
     config_digest: str
     strategy: StrategySummary
     metadata: ReproducibilityMetadata
+    timeline: StrategyTimeline

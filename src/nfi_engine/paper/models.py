@@ -5,7 +5,9 @@ from datetime import datetime
 from enum import StrEnum, unique
 
 from nfi_engine.config import RuntimeSettings
-from nfi_engine.domain import PositionSide, Price, TradingPair
+from nfi_engine.domain import AccountSnapshot, PositionSide, Price, TradingPair
+from nfi_engine.strategy import FreqtradeStrategyAdapter
+from nfi_engine.strategy.timeline import StrategyTimeline
 
 
 @unique
@@ -38,6 +40,8 @@ class PaperRunRequest:
     ticks: tuple[PaperTick, ...]
     max_events: int
     database_url: str
+    strategy_adapter: FreqtradeStrategyAdapter | None = None
+    account_snapshot: AccountSnapshot | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,3 +53,4 @@ class PaperRunResult:
     trading_halted: bool
     halted_breaker: str | None
     new_orders_blocked: bool
+    timeline: StrategyTimeline

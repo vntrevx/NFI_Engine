@@ -23,3 +23,12 @@ jobs:
       - run: uv run ruff check .
       - run: uv run basedpyright
       - run: uv run pytest -q
+      - run: python3 -m json.tool package.json >/dev/null
+      - run: bash -n scripts/install.sh scripts/uninstall.sh scripts/final_smoke.sh
+      - name: Install bootstrap dry-run
+        run: |
+          runtime_dir="$(mktemp -d)"
+          trap 'rm -rf "$runtime_dir"' EXIT
+          bash scripts/install.sh --yes --paper --testnet --dry-run --runtime-dir "$runtime_dir/runtime"
+          bash scripts/uninstall.sh --yes --dry-run --runtime-dir "$runtime_dir/runtime"
+          bash scripts/uninstall.sh --purge --yes --dry-run --runtime-dir "$runtime_dir/runtime"

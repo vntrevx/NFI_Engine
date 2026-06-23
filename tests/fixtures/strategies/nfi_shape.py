@@ -95,3 +95,8 @@ class MetadataLookupStrategy(NFISmokeStrategy):
         _metadata: StrategyMetadata,
     ) -> StrategyFrame:
         return dataframe
+
+
+class UnsupportedCallbackStrategy(NFISmokeStrategy):
+    def custom_entry_price(self) -> str:
+        return "unsupported"

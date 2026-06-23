@@ -9,7 +9,13 @@ from typing import Annotated, Final, NoReturn
 import anyio
 import typer
 
-from nfi_engine.config import ConfigLoadError, load_runtime_settings
+from nfi_engine.cli_exchange_capabilities import (
+    ExchangeCapabilitiesFormat,
+    build_exchange_capabilities_output,
+    format_capability_profile,
+)
+from nfi_engine.cli_exchange_lifecycle import lifecycle_app
+from nfi_engine.config import ConfigLoadError, RuntimeSettings, load_runtime_settings
 from nfi_engine.domain import (
     DomainError,
     Leverage,
@@ -17,10 +23,18 @@ from nfi_engine.domain import (
     PositionSide,
     Price,
     Quantity,
+    TradingMode,
     TradingPair,
 )
-from nfi_engine.exchange import ExchangeError, ExchangeOrder, ExchangeOrderRequest, Tick
-from nfi_engine.exchange.bybit import BybitTestnetAdapter
+from nfi_engine.exchange import (
+    ExchangeCapabilityProfile,
+    ExchangeError,
+    ExchangeOrder,
+    ExchangeOrderRequest,
+    Tick,
+    get_exchange_profile,
+)
+from nfi_engine.exchange.discovery import parse_exchange_id
 from nfi_engine.exchange.simulator import DeterministicExchangeSimulator
 from nfi_engine.reconciliation import (
     ReconciliationError,
@@ -29,7 +43,10 @@ from nfi_engine.reconciliation import (
     reconcile_snapshot,
 )
 
-exchange_app: Final[typer.Typer] = typer.Typer(help="Inspect exchange adapter behavior.")
+exchange_app: Final[typer.Typer] = typer.Typer(
+    help="Inspect exchange registry and simulator behavior."
+)
+exchange_app.add_typer(lifecycle_app, name="lifecycle")
 DEFAULT_PRICE: Final = Decimal(100)
 DEFAULT_RECONCILE_FIXTURE: Final = Path("tests/fixtures/exchange/reconcile_match.json")
 
@@ -70,18 +87,48 @@ def simulate_order(
 
 @exchange_app.command("check")
 def check_exchange(
-    config: Annotated[Path, typer.Option("--config", exists=True, dir_okay=False)],
+    config: Annotated[Path | None, typer.Option("--config", exists=True, dir_okay=False)] = None,
+    exchange: Annotated[str | None, typer.Option("--exchange")] = None,
 ) -> None:
     try:
-        settings = load_runtime_settings(config)
-        if settings.exchange.name == "bybit":
-            BybitTestnetAdapter.from_settings(settings=settings, client=None)
-        sys.stdout.write(f"exchange={settings.exchange.name}\n")
-        sys.stdout.write("live_exchange=false\n")
+        exchange_id, settings = _exchange_check_target(config=config, exchange=exchange)
+        sys.stdout.write(f"exchange={exchange_id}\n")
+        profile = get_exchange_profile(exchange_id)
+        if profile is None:
+            _exit_with_error(
+                "EXCHANGE_UNSUPPORTED",
+                f"unsupported exchange: {exchange_id}",
+            )
+        sys.stdout.write(format_capability_profile(profile))
+        if settings is not None:
+            _write_config_policy(settings=settings, profile=profile)
     except ConfigLoadError as exc:
         _exit_with_error(exc.code.value, exc.message)
     except ExchangeError as exc:
         _exit_with_error(exc.code.value, exc.message)
+
+
+@exchange_app.command("capabilities")
+def exchange_capabilities(
+    exchange: Annotated[str, typer.Option("--exchange")],
+    trading_mode: Annotated[
+        TradingMode,
+        typer.Option("--trading-mode"),
+    ] = TradingMode.SPOT,
+    output_format: Annotated[
+        ExchangeCapabilitiesFormat,
+        typer.Option("--format"),
+    ] = ExchangeCapabilitiesFormat.TEXT,
+) -> None:
+    try:
+        output = build_exchange_capabilities_output(
+            exchange=exchange,
+            trading_mode=trading_mode,
+            output_format=output_format,
+        )
+    except ExchangeError as exc:
+        _exit_with_error(exc.code.value, exc.message)
+    sys.stdout.write(output)
 
 
 @exchange_app.command("reconcile")
@@ -121,6 +168,55 @@ def _write_reconciliation_report(report: ReconciliationReport) -> None:
         sys.stdout.write(
             f"issue={issue.code.value}\tsubject={issue.subject}\taction={issue.suggested_action}\n",
         )
+
+
+def _exchange_check_target(
+    *,
+    config: Path | None,
+    exchange: str | None,
+) -> tuple[str, RuntimeSettings | None]:
+    if config is None and exchange is None:
+        _exit_with_error("EXCHANGE_CHECK_TARGET_REQUIRED", "pass --config or --exchange")
+    if config is not None and exchange is not None:
+        _exit_with_error(
+            "EXCHANGE_CHECK_TARGET_AMBIGUOUS", "pass only one of --config or --exchange"
+        )
+    if exchange is not None:
+        return parse_exchange_id(exchange), None
+    if config is None:
+        _exit_with_error("EXCHANGE_CHECK_TARGET_REQUIRED", "pass --config or --exchange")
+    settings = load_runtime_settings(config)
+    return settings.exchange.name, settings
+
+
+def _write_config_policy(
+    *,
+    settings: RuntimeSettings,
+    profile: ExchangeCapabilityProfile,
+) -> None:
+    block_reason = _exchange_config_block_reason(settings=settings, profile=profile)
+    sys.stdout.write(f"config_live_trading={str(settings.engine.live_trading).lower()}\n")
+    sys.stdout.write(f"config_testnet={str(settings.exchange.testnet).lower()}\n")
+    if block_reason is None:
+        sys.stdout.write("policy_status=pass\n")
+        return
+    sys.stdout.write("policy_status=block\n")
+    sys.stdout.write(f"policy_block={block_reason}\n")
+    raise typer.Exit(code=1)
+
+
+def _exchange_config_block_reason(
+    *,
+    settings: RuntimeSettings,
+    profile: ExchangeCapabilityProfile,
+) -> str | None:
+    if settings.engine.live_trading:
+        return "live_trading is blocked in current milestone"
+    if profile.exchange_id != "simulator" and not settings.exchange.testnet:
+        return f"{profile.exchange_id} requires testnet=true in current milestone"
+    if settings.exchange.testnet and not profile.supports_testnet:
+        return f"{profile.exchange_id} has no registry-backed testnet support"
+    return None
 
 
 def _parse_side(raw: str) -> PositionSide:

@@ -118,6 +118,99 @@ def test_dashboard_snapshot_returns_valid_empty_arrays_when_datasets_are_empty()
     assert payload["pairlist"]["preview"][0] == "BTC/USDT:USDT"
 
 
+def test_dashboard_snapshot_serializes_prioritized_actions_for_blocked_error_state() -> None:
+    settings = RuntimeSettings.model_validate(
+        {
+            "pairlist": {
+                "whitelist": "",
+                "quote_asset": "USDT",
+            },
+        }
+    )
+    report = PreflightReport(
+        profile="paper",
+        blocked=True,
+        checks=(
+            PreflightCheck(
+                code=PreflightCode.CONFIG_INVALID,
+                status=PreflightStatus.BLOCK,
+                message="invalid",
+            ),
+        ),
+    )
+    logs = (
+        _log(LogLevel.ERROR, "CONFIG_VALIDATION_ERROR"),
+        _log(LogLevel.ERROR, "PAIRLIST_EMPTY"),
+        _log(LogLevel.ERROR, "RUNTIME_STALLED"),
+        _log(LogLevel.ERROR, "IGNORE_OVERFLOW"),
+    )
+
+    snapshot = build_dashboard_snapshot(
+        settings=settings,
+        bot_state=BotState.STOPPED,
+        readiness=report,
+        logs=logs,
+        read_models=DashboardReadModels.empty(),
+    )
+    payload = DashboardSnapshotResponse.from_snapshot(snapshot).model_dump(mode="json")
+
+    assert payload["actions"] == [
+        {
+            "code": "readiness_blocked",
+            "severity": "error",
+            "title": "Preflight is blocking startup",
+            "detail": "Review failed checks in setup before starting the runtime.",
+            "target": "settings/setup",
+        },
+        {
+            "code": "runtime_errors_detected",
+            "severity": "error",
+            "title": "Recent runtime errors need review",
+            "detail": "Open Logs and inspect the latest error summaries before continuing.",
+            "target": "logs",
+        },
+        {
+            "code": "pairlist_empty",
+            "severity": "warning",
+            "title": "Pairlist is empty",
+            "detail": "Add at least one whitelisted pair before running the paper engine.",
+            "target": "settings",
+        },
+        {
+            "code": "support_bundle_follow_up",
+            "severity": "info",
+            "title": "Export a support bundle if errors persist",
+            "detail": (
+                "Capture a redacted support bundle after reviewing the logs if follow-up is needed."
+            ),
+            "target": "logs/support-bundle",
+        },
+    ]
+
+
+def test_dashboard_snapshot_returns_safe_ready_action_for_clean_runtime() -> None:
+    report = PreflightReport(profile="paper", blocked=False, checks=())
+
+    snapshot = build_dashboard_snapshot(
+        settings=RuntimeSettings(),
+        bot_state=BotState.STOPPED,
+        readiness=report,
+        logs=(),
+        read_models=DashboardReadModels.empty(),
+    )
+    payload = DashboardSnapshotResponse.from_snapshot(snapshot).model_dump(mode="json")
+
+    assert payload["actions"] == [
+        {
+            "code": "paper_runtime_ready",
+            "severity": "info",
+            "title": "Paper/testnet runtime is ready",
+            "detail": "Review status, pairlist, and safety panels before starting the bot.",
+            "target": "dashboard/status",
+        },
+    ]
+
+
 def _log(level: LogLevel, code: str) -> LogEntryResponse:
     return LogEntryResponse(
         at=NOW,

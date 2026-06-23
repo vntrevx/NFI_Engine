@@ -1,0 +1,21 @@
+{
+  "name": "nfi-engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local one-line operator bootstrap wrappers for NFI Engine.",
+  "scripts": {
+    "nfi:browser-qa:deps": "bash scripts/browser_qa_deps.sh",
+    "nfi:browser-qa": "node scripts/browser_qa_t10.mjs",
+    "nfi:browser-qa:wp8-3": "node scripts/browser_qa_t24_data_lifecycle.mjs",
+    "nfi:browser-qa:wp9": "node scripts/browser_qa_t25_visual_i18n.mjs",
+    "nfi:install": "bash scripts/install.sh --yes --paper --testnet",
+    "nfi:install:dry-run": "bash scripts/install.sh --yes --paper --testnet --dry-run",
+    "nfi:uninstall": "bash scripts/uninstall.sh --yes",
+    "nfi:uninstall:dry-run": "bash scripts/uninstall.sh --yes --dry-run",
+    "nfi:uninstall:purge:dry-run": "bash scripts/uninstall.sh --purge --yes --dry-run",
+    "nfi:pi4:rc-check": "bash scripts/pi4_rc_profile.sh"
+  },
+  "devDependencies": {
+    "playwright-core": "1.60.0"
+  }
+}

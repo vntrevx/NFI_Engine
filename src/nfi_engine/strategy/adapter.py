@@ -5,28 +5,14 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Final, Self
+from typing import Self
 
 from nfi_engine.domain import Leverage, PositionSide, SignalType, TradingPair
+from nfi_engine.strategy.callbacks import build_callback_support, detect_known_callbacks
 from nfi_engine.strategy.dtos import StrategyInspection, StrategyMetadata, StrategySignal
 from nfi_engine.strategy.errors import StrategyContractError, StrategyErrorCode
 from nfi_engine.strategy.frame import StrategyFrame, StrategyRow
 from nfi_engine.strategy.protocols import LeverageCallback, RequiredFreqtradeStrategy
-
-CALLBACK_NAMES: Final = (
-    "populate_indicators",
-    "populate_entry_trend",
-    "populate_exit_trend",
-    "informative_pairs",
-    "custom_exit",
-    "custom_stake_amount",
-    "order_filled",
-    "adjust_trade_position",
-    "confirm_trade_entry",
-    "confirm_trade_exit",
-    "bot_loop_start",
-    "leverage",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,11 +36,8 @@ class FreqtradeStrategyAdapter:
             name=type(self.strategy).__name__,
             can_short=self.strategy.can_short,
             timeframe=self.strategy.timeframe,
-            detected_callbacks=tuple(
-                callback_name
-                for callback_name in CALLBACK_NAMES
-                if callable(getattr(self.strategy, callback_name, None))
-            ),
+            detected_callbacks=detect_known_callbacks(self.strategy),
+            callback_support=build_callback_support(self.strategy),
         )
 
     def analyze(
@@ -168,6 +151,7 @@ def _signals_from_row(
                 pair=metadata.pair,
                 side=PositionSide.LONG,
                 signal_type=SignalType.EXIT,
+                tag=row.exit_tag,
             ),
         )
     if row.exit_short:
@@ -176,6 +160,7 @@ def _signals_from_row(
                 pair=metadata.pair,
                 side=PositionSide.SHORT,
                 signal_type=SignalType.EXIT,
+                tag=row.exit_tag,
             ),
         )
     return tuple(signals)

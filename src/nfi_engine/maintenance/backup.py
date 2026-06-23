@@ -4,14 +4,14 @@ import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import ClassVar, Final
+from typing import Final
+from urllib.parse import urlsplit, urlunsplit
 from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile
-
-from pydantic import BaseModel, ConfigDict
 
 from nfi_engine import __version__
 from nfi_engine.api.models import LogListResponse, config_current_response, initial_log_entries
 from nfi_engine.config import RuntimeSettings, load_runtime_settings
+from nfi_engine.events import REDACTED_TEXT
 from nfi_engine.maintenance.config_migration import build_config_history
 from nfi_engine.maintenance.models import (
     BackupRestorePlan,
@@ -22,53 +22,24 @@ from nfi_engine.maintenance.models import (
 )
 from nfi_engine.profiles import default_profile_name, get_operator_profile
 
-CONFIG_NAME: Final = "config.json"
-DATABASE_INFO_NAME: Final = "database.json"
-DATABASE_NAME: Final = "database.sqlite"
-DOCKER_NAME: Final = "docker.json"
-LOGS_NAME: Final = "logs.json"
-MANIFEST_NAME: Final = "manifest.json"
-PROFILE_NAME: Final = "profile.json"
-STRATEGY_NAME: Final = "strategy.json"
+from .backup_manifest import (
+    CONFIG_NAME,
+    DATABASE_INFO_NAME,
+    DATABASE_NAME,
+    DOCKER_NAME,
+    LOGS_NAME,
+    MANIFEST_NAME,
+    PROFILE_NAME,
+    STRATEGY_NAME,
+    BackupManifestPayload,
+    DatabasePayload,
+    DockerPayload,
+    ProfilePayload,
+    StrategyPayload,
+    validate_backup_archive_names,
+)
+
 SQLITE_PREFIX: Final = "sqlite+aiosqlite:///"
-
-
-class StrictBackupModel(BaseModel):
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
-
-
-class BackupManifestPayload(StrictBackupModel):
-    engine_version: str
-    generated_at: datetime
-    redacted: bool
-    config_hash: str
-    dependency_lock_hash: str
-    files: tuple[str, ...]
-    checksums: dict[str, str]
-
-
-class ProfilePayload(StrictBackupModel):
-    name: str
-    description: str
-    read_only: bool
-
-
-class StrategyPayload(StrictBackupModel):
-    name: str
-    module: str
-    config_hash: str
-    dependency_lock_hash: str
-
-
-class DatabasePayload(StrictBackupModel):
-    database_url: str
-    included: bool
-    archive_name: str | None
-
-
-class DockerPayload(StrictBackupModel):
-    compose_present: bool
-    dockerfile_present: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +77,7 @@ def verify_backup(archive: Path) -> BackupVerification:
         with ZipFile(archive) as opened:
             names = tuple(sorted(opened.namelist()))
             manifest = BackupManifestPayload.model_validate_json(opened.read(MANIFEST_NAME))
+            validate_backup_archive_names(names=names, manifest=manifest)
             manifest_valid = _checksums_match(archive=opened, manifest=manifest)
     except (BadZipFile, KeyError, ValueError) as exc:
         raise MaintenanceError(
@@ -121,11 +93,20 @@ def verify_backup(archive: Path) -> BackupVerification:
 
 
 def preview_backup_restore(*, archive: Path, dry_run: bool) -> BackupRestorePlan:
+    if not dry_run:
+        raise MaintenanceError(
+            code=MaintenanceErrorCode.BACKUP_RESTORE_APPLY_UNSUPPORTED,
+            message="mutating restore apply is not implemented; run restore with --dry-run",
+        )
     verification = verify_backup(archive)
-    apply = not dry_run
+    if not verification.manifest_valid:
+        raise MaintenanceError(
+            code=MaintenanceErrorCode.BACKUP_INVALID,
+            message="backup archive manifest checksum verification failed",
+        )
     return BackupRestorePlan(
         archive=str(archive),
-        apply=apply,
+        apply=False,
         manifest_valid=verification.manifest_valid,
         entries=verification.entries,
         steps=tuple(f"restore {entry}" for entry in verification.entries if entry != MANIFEST_NAME),
@@ -200,7 +181,7 @@ def _database_member(settings: RuntimeSettings) -> DatabaseMembers:
     path = _sqlite_path(settings.database.url)
     included = path is not None and path.exists()
     info = DatabasePayload(
-        database_url=settings.database.url,
+        database_url=_redacted_database_url(settings.database.url),
         included=included,
         archive_name=DATABASE_NAME if included else None,
     )
@@ -211,6 +192,23 @@ def _database_member(settings: RuntimeSettings) -> DatabaseMembers:
     )
     info_member = ArchiveMember(DATABASE_INFO_NAME, info.model_dump_json(indent=2).encode())
     return DatabaseMembers(info=info_member, data=data)
+
+
+def _redacted_database_url(database_url: str) -> str:
+    if database_url.startswith(SQLITE_PREFIX):
+        return database_url
+    parsed = urlsplit(database_url)
+    if parsed.scheme == "":
+        return database_url
+    netloc = parsed.netloc
+    if "@" in netloc:
+        _, host = netloc.rsplit("@", maxsplit=1)
+        netloc = f"{REDACTED_TEXT}@{host}"
+    query = REDACTED_TEXT if parsed.query else ""
+    if parsed.netloc == "" and database_url.startswith(f"{parsed.scheme}:///"):
+        suffix = f"?{query}" if query else ""
+        return f"{parsed.scheme}://{parsed.path}{suffix}"
+    return urlunsplit((parsed.scheme, netloc, parsed.path, query, ""))
 
 
 def _sqlite_path(database_url: str) -> Path | None:

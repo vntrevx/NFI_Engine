@@ -17,7 +17,10 @@ home dashboard, local chart snapshots, English/Korean/Greek UI text,
 one-command Docker install/uninstall, benchmark evidence, and a release gate
 that proves the local operator flow before it is called shippable. See
 [docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md) for the
-clean-room feature map and NFI Engine differentiation rules.
+clean-room feature map and NFI Engine differentiation rules. The current S1
+product boundary is split into
+[docs/nfi-x7-compatibility.md](docs/nfi-x7-compatibility.md) and
+[docs/exchange-support-matrix.md](docs/exchange-support-matrix.md).
 
 ## Quickstart
 
@@ -27,27 +30,55 @@ Docker is the primary first-run path. From a local checkout:
 bash scripts/install.sh --yes --paper --testnet
 ```
 
+The same one-line installer is exposed through npm and Bun wrappers for
+operators who prefer a package-manager command:
+
+```bash
+npm run nfi:install
+bun run nfi:install
+```
+
+Dry-run receipts are available before starting Docker:
+
+```bash
+bash scripts/install.sh --yes --paper --testnet --dry-run
+npm run nfi:install:dry-run
+bun run nfi:install:dry-run
+```
+
 First Run:
 
 1. Open `http://127.0.0.1:18080/`.
 2. Paste the local operator token from `.runtime/docker.env` into the login screen. The installer prints `login_token_file=.runtime/docker.env`, never the token value.
-3. Use Home to check Setup Doctor, Safety Explainer, chart status, recent errors, and pairlist state.
-4. Use Settings for the small Simple Mode form and setup preview. API key and API secret fields are write-only and redacted from output.
-5. Use the language selector for English, Korean, and Greek UI text.
-6. Use Logs to export a redacted support report when an error code appears.
+3. Use Home to check the operator cockpit, Setup Doctor, Safety Explainer, chart status, runtime controls, recent errors, and pairlist state.
+4. Use Settings for first-run setup: exchange, exchange API key, exchange API secret, API permission audit, recommended 3x leverage, risk profile, explicit wallet balance fetch, allocated amount, futures/spot, and dry-run/live.
+5. Keep dry-run selected unless the live confirmation path is intentionally being tested. Withdrawal-like API permission blocks live setup, expert risk requires explicit confirmation, and API key/secret fields are write-only and redacted from output.
+6. Use the language selector for English, Korean, and Greek UI text.
+7. Use Logs to export a redacted support report when an error code appears.
 
 Useful first checks:
 
 ```bash
 curl -i http://127.0.0.1:18080/api/v1/ping
 bash scripts/uninstall.sh --yes
+npm run nfi:uninstall
+bun run nfi:uninstall
+```
+
+Native X7 semantic-runtime inspection is available on the dry-run/paper/testnet
+path without vendoring upstream strategy code:
+
+```bash
+uv run nfi-engine strategy inspect --config examples/x7-futures-paper.yaml --strategy nfi_engine.strategy.nfi_x7:X7NativeStrategy --json
 ```
 
 Safe uninstall preserves generated runtime files and data volumes. Destructive
-purge is explicit:
+purge is explicit; npm and Bun expose only the purge preview:
 
 ```bash
 bash scripts/uninstall.sh --purge --yes
+npm run nfi:uninstall:purge:dry-run
+bun run nfi:uninstall:purge:dry-run
 ```
 
 Do not enter real exchange credentials into issues, chat logs, committed files,
@@ -82,6 +113,8 @@ storage.
 
 ```bash
 bash scripts/install.sh --yes --paper --testnet
+npm run nfi:install
+bun run nfi:install
 curl -i http://127.0.0.1:18080/api/v1/ping
 bash scripts/uninstall.sh --yes
 ```
@@ -155,10 +188,14 @@ uv run nfi-engine backup restore --dry-run .omo/evidence/backup.zip
 Exchange and market checks:
 
 ```bash
+uv run nfi-engine exchange capabilities --exchange bybit --trading-mode futures --format json
 uv run nfi-engine exchange reconcile --config examples/futures-paper.yaml --dry-run --fixture tests/fixtures/exchange/reconcile_match.json
 uv run nfi-engine pairlist validate --config examples/futures-paper.yaml --output .omo/evidence/pairlist.json
 uv run nfi-engine simulate fills --scenario tests/fixtures/simulator/partial_fill_latency.yaml --output .omo/evidence/fill-sim.json
 ```
+
+`exchange capabilities` labels registry profiles and report-only generic ids
+without promoting unknown exchanges into config, paper/testnet, or live paths.
 
 See [docs/operations.md](docs/operations.md), [docs/backup.md](docs/backup.md),
 [docs/reconciliation.md](docs/reconciliation.md), [docs/pairlist.md](docs/pairlist.md),
@@ -168,10 +205,13 @@ and [docs/simulator.md](docs/simulator.md).
 
 The console is a local operator surface, not a public dashboard.
 
-- `/settings`: config metadata editor, validation, draft/apply, readiness, pairlist, safety locks.
+- `/`: Home cockpit with setup readiness, runtime health, pause/resume/stop-safe controls, wallet balance state, action queue, local chart, safety, and support shortcuts.
+- `/settings`: first-run setup wizard, config metadata editor, validation, draft/apply, readiness, pairlist, update states, safety locks.
+- first-run setup wizard: exchange credentials, API permission audit, 3x recommendation, risk profile, explicit wallet balance fetch, amount, futures/spot, dry-run/live, redacted preview.
+- update state panel: local-safe preview/apply/rollback states for future engine+strategy update flow.
 - `/logs`: recent logs, severity filter, error-code lookup, correlation IDs, support report export.
-- Read-only mode: settings/logs/pairlists are inspectable, while save/apply/restore/start/stop are disabled and server-blocked.
-- Security: authenticated session cookie, CSRF token for mutations, logout, expiry, protected audit log, no browser token storage.
+- Read-only mode: settings/logs/pairlists are inspectable, while save/apply/restore/start/pause/resume/stop are disabled and server-blocked.
+- Security: authenticated session cookie, CSRF token for mutations, protected wallet fetch and runtime health JSON, logout, expiry, protected audit log, no browser token storage.
 
 See [docs/ui.md](docs/ui.md).
 
@@ -181,6 +221,10 @@ Freqtrade remains the functional benchmark, but NFI Engine must stay original in
 design and implementation. Each broad feature category is tracked with an
 explicit NFI Engine angle in
 [docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md).
+The clean-room NFI X7 target facts live in
+[docs/nfi-x7-compatibility.md](docs/nfi-x7-compatibility.md), while exchange
+support is separated into `candidate`, `verified`, and `generic-unverified`
+levels in [docs/exchange-support-matrix.md](docs/exchange-support-matrix.md).
 
 ## Evidence And Quality Gates
 
@@ -188,19 +232,48 @@ Use the smoke harness to refresh final evidence files:
 
 ```bash
 bash scripts/final_smoke.sh
+uv run python scripts/release_wording_scan.py
 ```
 
-The current M2 hardening evidence root is:
+The current operator and X7 semantic-runtime evidence roots are:
 
 ```text
 .omo/evidence/2026-06-12-dev-entry/
+.omo/evidence/2026-06-20-nfi-x7-semantic-port/
+.omo/evidence/2026-06-21-x7-live-readiness-pi4-rc/
 ```
 
+The 2026-06-21/22 RC root is the current paper/testnet release-candidate lane.
+It records X7 semantic inspection, exchange/wallet gates, order-lifecycle
+testnet boundaries, runtime-control safety, browser workflow evidence, update
+rollback proof, Pi4 install/soak/deploy receipts, and the T5A Pi4 X7 benchmark
+budget resolution. The Pi4 evidence keeps `claim_allowed=false`; use it for
+internal RC gating, not public speed or live-money wording.
+
+The current dated status summary is maintained in
+[docs/release-status.md](docs/release-status.md). It separates completed,
+partial, blocked, and next work for the current RC lane.
+
 The release gate includes Docker install/login/Home smoke, local benchmark JSON,
-a supplied-baseline regression failure check, and desktop/mobile browser
-evidence for Home, Settings, Logs, and the login path. Benchmark regression
-blocking only applies when `--baseline` is supplied; first-run smoke validates
-the generated local report without claiming public speed superiority.
+a supplied-baseline regression failure check, install/uninstall dry-run receipts,
+package-wrapper bootstrap smoke, and desktop/mobile browser
+evidence for Home, Settings, Logs, the login path, X7 strategy inspection, and
+the deterministic release-wording scan. Benchmark regression blocking only
+applies when `--baseline` is supplied; first-run smoke validates the generated
+local report without claiming public speed superiority.
+
+Focused live-server browser QA:
+
+```bash
+npm install
+npm run nfi:browser-qa:deps
+npm run nfi:browser-qa
+```
+
+This starts a QA-only loopback server, logs in through the real browser page,
+switches Settings locale without manual F5, captures Home/Settings/Logs
+desktop and mobile screenshots, and fails on external network requests or
+browser token storage.
 
 Core quality gate:
 
@@ -210,6 +283,19 @@ uv run ruff check .
 uv run basedpyright
 uv run pytest -q
 ```
+
+Scripted quality gate:
+
+```bash
+bash scripts/quality_gate.sh --docs-only
+bash scripts/quality_gate.sh --strict
+bash scripts/quality_gate.sh --coverage-only
+```
+
+`--docs-only` is the fast default for governance and documentation edits.
+`--strict` runs the full local gate above. `--coverage-only` runs a focused
+coverage smoke on the config/domain unit-test slice with the current coverage
+budget.
 
 Plan evidence audit:
 
@@ -225,12 +311,18 @@ python3 scripts/verify_plan_evidence.py .omo/plans/2026-06-12-nfi-engine-dev-ent
 - No public internet exposure for the operator console.
 - No full upstream NFI parity claim.
 - Exchange adapters are fixture/testnet oriented until later milestones.
+- Current RC wording is paper/testnet only: live order execution remains behind
+  a separate design and verification milestone.
 
 ## Further Reading
 
+- [docs/release-wording.md](docs/release-wording.md)
+- [docs/release-status.md](docs/release-status.md)
 - [docs/docker.md](docs/docker.md)
 - [docs/contributing.md](docs/contributing.md)
 - [docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md)
+- [docs/nfi-x7-compatibility.md](docs/nfi-x7-compatibility.md)
+- [docs/exchange-support-matrix.md](docs/exchange-support-matrix.md)
 - [docs/performance.md](docs/performance.md)
 - [docs/plugins.md](docs/plugins.md)
 - [docs/reproducibility.md](docs/reproducibility.md)

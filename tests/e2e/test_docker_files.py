@@ -53,12 +53,12 @@ def test_compose_uses_local_port_healthcheck_and_named_volumes() -> None:
     assert "api:" in compose
     assert "cli:" in compose
     assert "paper:" in compose
-    assert '"127.0.0.1:18080:18080"' in compose
+    assert '"127.0.0.1:${NFI_ENGINE_HOST_PORT:-18080}:18080"' in compose
     assert "healthcheck:" in compose
     assert "nfi-data:" in compose
     assert "nfi-logs:" in compose
     assert "/config/futures-paper.yaml" in compose
-    assert "./.runtime/config:/config:ro" in compose
+    assert "${NFI_ENGINE_RUNTIME_CONFIG_DIR:-./.runtime/config}:/config:ro" in compose
     assert "nfi-config:" not in compose
     assert "examples/docker.env.example" in compose
     assert ".runtime/docker.env" in compose

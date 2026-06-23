@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import os
-from decimal import Decimal
 from pathlib import Path
 from typing import Final
 
 from nfi_engine.api.errors import ApiConfigurationError
 from nfi_engine.api.settings import validate_api_auth_settings
 from nfi_engine.config import ConfigLoadError, RuntimeSettings, load_runtime_settings
-from nfi_engine.domain import TradingMode
+from nfi_engine.exchange import get_exchange_profile
+from nfi_engine.preflight.exchange_checks import exchange_mode_check
+from nfi_engine.preflight.guardrail_checks import runtime_guardrail_checks
+from nfi_engine.preflight.live_readiness import live_readiness_checks
 from nfi_engine.preflight.models import (
     PreflightCheck,
     PreflightCode,
@@ -20,7 +22,6 @@ from nfi_engine.profiles import ProfileError, get_operator_profile
 
 SQLITE_PREFIX: Final = "sqlite+aiosqlite:///"
 LOCAL_API_HOST: Final = "127.0.0.1"
-FUTURES_LEVERAGE_CEILING: Final = Decimal(10)
 REQUIRED_COMPOSE_VOLUMES: Final = ("nfi-data", "nfi-logs")
 
 
@@ -52,8 +53,9 @@ def run_preflight(
     checks.append(_api_bind_check(settings))
     checks.append(_api_token_check(settings))
     checks.append(_live_scope_check(settings))
-    checks.append(_futures_leverage_check(settings))
-    checks.append(_exchange_mode_check(settings))
+    checks.extend(live_readiness_checks(settings))
+    checks.extend(runtime_guardrail_checks(settings))
+    checks.append(exchange_mode_check(settings))
     checks.append(_database_path_check(settings))
     checks.append(_log_path_check(settings))
     checks.append(_docker_volume_check())
@@ -79,11 +81,14 @@ def _profile_check(*, settings: RuntimeSettings, profile_name: str) -> Preflight
             PreflightStatus.BLOCK,
             f"{profile.name} does not allow {settings.exchange.trading_mode.value}",
         )
-    if profile.name == "bybit-testnet" and settings.exchange.name != "bybit":
+    exchange_profile = get_exchange_profile(settings.exchange.name)
+    if profile.exchange_id is not None and (
+        exchange_profile is None or exchange_profile.exchange_id != profile.exchange_id
+    ):
         return _check(
             PreflightCode.PROFILE_CONFIG_MISMATCH,
             PreflightStatus.BLOCK,
-            "bybit-testnet requires exchange.name=bybit",
+            f"{profile.name} requires exchange.name={profile.exchange_id}",
         )
     if profile.read_only and not settings.ui.read_only:
         return _check(
@@ -123,39 +128,6 @@ def _live_scope_check(settings: RuntimeSettings) -> PreflightCheck:
         PreflightCode.LIVE_TRADING_DISABLED,
         PreflightStatus.PASS,
         "live trading is disabled",
-    )
-
-
-def _futures_leverage_check(settings: RuntimeSettings) -> PreflightCheck:
-    if settings.exchange.trading_mode is not TradingMode.FUTURES:
-        return _check(PreflightCode.FUTURES_LEVERAGE_INVALID, PreflightStatus.PASS, "spot mode")
-    if (
-        settings.risk.leverage > settings.risk.max_leverage
-        or settings.risk.leverage > FUTURES_LEVERAGE_CEILING
-    ):
-        return _check(
-            PreflightCode.FUTURES_LEVERAGE_INVALID,
-            PreflightStatus.BLOCK,
-            "futures leverage exceeds readiness ceiling",
-        )
-    return _check(
-        PreflightCode.FUTURES_LEVERAGE_INVALID,
-        PreflightStatus.PASS,
-        "futures leverage guardrails passed",
-    )
-
-
-def _exchange_mode_check(settings: RuntimeSettings) -> PreflightCheck:
-    if settings.exchange.name == "bybit" and not settings.exchange.testnet:
-        return _check(
-            PreflightCode.EXCHANGE_TESTNET_REQUIRED,
-            PreflightStatus.BLOCK,
-            "Bybit adapter must use testnet=true in milestone 1",
-        )
-    return _check(
-        PreflightCode.EXCHANGE_TESTNET_REQUIRED,
-        PreflightStatus.PASS,
-        "exchange mode is simulator or testnet",
     )
 
 

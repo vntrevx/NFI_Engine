@@ -1,19 +1,24 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from decimal import Decimal
+from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import NotRequired, Protocol, TypedDict, assert_never
 
 from nfi_engine.config import RuntimeSettings
 from nfi_engine.domain import (
+    AccountSnapshot,
     Leverage,
     OrderState,
     OrderType,
     PositionSide,
     Price,
     Quantity,
+    StakeAmount,
     TradingPair,
 )
+from nfi_engine.domain.primitives import DecimalInput
 from nfi_engine.exchange.errors import ExchangeError, ExchangeErrorCode
 from nfi_engine.exchange.models import ExchangeOrder, ExchangeOrderRequest, FundingRate
 
@@ -32,6 +37,11 @@ class CcxtOrderPayload(TypedDict):
 class CcxtFundingPayload(TypedDict):
     symbol: str
     fundingRate: str
+
+
+class CcxtBalancePayload(TypedDict):
+    total: Mapping[str, DecimalInput | None]
+    free: Mapping[str, DecimalInput | None]
 
 
 class CcxtClientProtocol(Protocol):
@@ -54,10 +64,13 @@ class CcxtClientProtocol(Protocol):
 
     async def set_leverage(self, leverage: int, symbol: str) -> CcxtOrderPayload: ...
 
+    async def fetch_balance(self) -> CcxtBalancePayload: ...
+
 
 @dataclass(frozen=True, slots=True)
 class BybitTestnetAdapter:
     client: CcxtClientProtocol
+    quote_asset: str
 
     @classmethod
     def from_settings(
@@ -77,7 +90,16 @@ class BybitTestnetAdapter:
                 message="Bybit adapter requires an injected CCXT client in milestone 1",
             )
         client.set_sandbox_mode(True)
-        return cls(client=client)
+        return cls(client=client, quote_asset=settings.pairlist.quote_asset)
+
+    async def fetch_balance(self) -> AccountSnapshot:
+        payload = await self.client.fetch_balance()
+        return AccountSnapshot(
+            captured_at=datetime.now(UTC),
+            equity=StakeAmount(_balance_amount(payload["total"], self.quote_asset)),
+            available=StakeAmount(_balance_amount(payload["free"], self.quote_asset)),
+            positions=(),
+        )
 
     async def create_order(self, request: ExchangeOrderRequest) -> ExchangeOrder:
         payload = await self.client.create_order(
@@ -132,7 +154,7 @@ def _request_from_payload(payload: CcxtOrderPayload, pair: TradingPair) -> Excha
     return ExchangeOrderRequest(
         pair=pair,
         side=_position_side(payload["side"]),
-        order_type=OrderType(payload["type"]),
+        order_type=_order_type_from_ccxt(payload["type"]),
         quantity=Quantity(Decimal(payload["amount"])),
         price=None if price is None else Price(Decimal(price)),
         leverage=Leverage.one(),
@@ -150,27 +172,45 @@ def _ccxt_side(side: PositionSide) -> str:
 
 
 def _position_side(side: str) -> PositionSide:
-    match side:
+    match side.lower():
         case "buy":
             return PositionSide.LONG
         case "sell":
             return PositionSide.SHORT
         case _:
-            return PositionSide.LONG
+            raise ExchangeError(
+                code=ExchangeErrorCode.ORDER_PAYLOAD_INVALID,
+                message=f"unknown ccxt order side: {side}",
+            )
 
 
 def _state_from_ccxt(status: str) -> OrderState:
-    match status:
+    match status.lower():
         case "closed":
             return OrderState.FILLED
         case "open":
             return OrderState.OPEN
+        case "partially_filled":
+            return OrderState.PARTIALLY_FILLED
         case "canceled":
             return OrderState.CANCELED
         case "rejected":
             return OrderState.REJECTED
         case _:
-            return OrderState.OPEN
+            raise ExchangeError(
+                code=ExchangeErrorCode.ORDER_PAYLOAD_INVALID,
+                message=f"unknown ccxt order status: {status}",
+            )
+
+
+def _order_type_from_ccxt(order_type: str) -> OrderType:
+    try:
+        return OrderType(order_type.lower())
+    except ValueError as exc:
+        raise ExchangeError(
+            code=ExchangeErrorCode.ORDER_PAYLOAD_INVALID,
+            message=f"unknown ccxt order type: {order_type}",
+        ) from exc
 
 
 def _average_from_payload(payload: CcxtOrderPayload) -> Price | None:
@@ -178,3 +218,22 @@ def _average_from_payload(payload: CcxtOrderPayload) -> Price | None:
     if average is None:
         return None
     return Price(Decimal(average))
+
+
+def _balance_amount(values: Mapping[str, DecimalInput | None], asset: str) -> Decimal:
+    raw_value = values.get(asset)
+    if raw_value is None:
+        return Decimal(0)
+    try:
+        amount = Decimal(str(raw_value))
+    except InvalidOperation as exc:
+        raise ExchangeError(
+            code=ExchangeErrorCode.ORDER_PAYLOAD_INVALID,
+            message=f"invalid ccxt balance amount for {asset}",
+        ) from exc
+    if not amount.is_finite():
+        raise ExchangeError(
+            code=ExchangeErrorCode.ORDER_PAYLOAD_INVALID,
+            message=f"non-finite ccxt balance amount for {asset}",
+        )
+    return amount

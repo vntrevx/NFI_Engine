@@ -39,11 +39,23 @@ async def test_home_route_is_first_usable_operator_surface() -> None:
     assert 'data-testid="bot-state"' in response.text
     assert 'data-testid="session-pnl"' in response.text
     assert 'data-testid="open-trades"' in response.text
+    assert 'data-testid="runtime-controls"' in response.text
+    assert 'data-testid="runtime-control-state"' in response.text
+    assert 'data-testid="pause-button"' in response.text
+    assert 'data-testid="resume-button"' in response.text
+    assert 'data-command="start"' in response.text
+    assert 'data-command="pause"' in response.text
+    assert 'data-command="resume"' in response.text
+    assert 'data-command="stop"' in response.text
     assert 'data-testid="dashboard-chart"' in response.text
     assert 'data-testid="chart-status"' in response.text
     assert 'data-testid="chart-render-time"' in response.text
+    assert 'data-testid="action-queue"' in response.text
+    assert 'data-testid="action-item"' in response.text
     assert 'data-poll-ms="5000"' in response.text
     assert "/api/v1/dashboard/snapshot" in response.text
+    assert "/api/v1/runtime/control" in response.text
+    assert "/api/v1/runtime/health" in response.text
     assert "chart-bars" not in response.text
     assert "/api/v1/reports/support-bundle.zip" in response.text
     assert "https://" not in response.text
@@ -91,6 +103,7 @@ async def test_home_route_renders_bounded_dashboard_read_model_summary() -> None
         'data-testid="session-pnl"><span>Session PnL</span><strong>12.34 USDT</strong>'
         in response.text
     )
+    assert 'data-testid="runtime-control-state">stopped<' in response.text
     assert "profit-placeholder" not in response.text
 
 

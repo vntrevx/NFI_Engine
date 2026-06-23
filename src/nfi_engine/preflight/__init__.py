@@ -6,13 +6,10 @@ from nfi_engine.preflight.models import (
     PreflightReport,
     PreflightStatus,
 )
-from nfi_engine.preflight.service import run_preflight, run_preflight_for_config
 
 __all__ = [
     "PreflightCheck",
     "PreflightCode",
     "PreflightReport",
     "PreflightStatus",
-    "run_preflight",
-    "run_preflight_for_config",
 ]

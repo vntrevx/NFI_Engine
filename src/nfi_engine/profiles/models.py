@@ -13,3 +13,4 @@ class OperatorProfile:
     requires_testnet: bool
     allow_live_trading: bool
     read_only: bool
+    exchange_id: str | None = None

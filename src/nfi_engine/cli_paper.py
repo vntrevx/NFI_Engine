@@ -1,19 +1,28 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, Final, NoReturn
 
 import anyio
 import typer
 
-from nfi_engine.config import ConfigLoadError, load_runtime_settings
+from nfi_engine.config import ConfigLoadError, RuntimeSettings, load_runtime_settings
 from nfi_engine.events import EventCode, EventSeverity, JsonlEventSink, TradingEvent
 from nfi_engine.observability import new_correlation_id
 from nfi_engine.paper import PaperError, PaperRunRequest, load_paper_ticks, run_paper
 from nfi_engine.safety import SafetyError
+from nfi_engine.strategy import (
+    FreqtradeStrategyAdapter,
+    StrategyContractError,
+    load_freqtrade_strategy,
+)
+from nfi_engine.strategy.timeline import StrategyTimeline, timeline_to_payload
+
+DEMO_STRATEGY_MODULE: Final = "nfi_engine.strategy.demo:AdapterSmokeStrategy"
 
 
 def paper_run(
@@ -21,6 +30,10 @@ def paper_run(
     ticks: Annotated[Path, typer.Option("--ticks", exists=True, dir_okay=False)],
     max_events: Annotated[int, typer.Option("--max-events", min=1)],
     events: Annotated[Path | None, typer.Option("--events", dir_okay=False)] = None,
+    timeline_output: Annotated[
+        Path | None,
+        typer.Option("--timeline-output", dir_okay=False),
+    ] = None,
 ) -> None:
     try:
         settings = load_runtime_settings(config)
@@ -34,16 +47,21 @@ def paper_run(
                     ticks=paper_ticks,
                     max_events=max_events,
                     database_url=database_url,
+                    strategy_adapter=_paper_strategy_adapter(settings),
                 ),
             )
     except ConfigLoadError as exc:
         _exit_with_error(exc.code.value, exc.message)
     except SafetyError as exc:
         _exit_with_error(exc.code.value, exc.message)
+    except StrategyContractError as exc:
+        _exit_with_error(exc.code.value, exc.message)
     except PaperError as exc:
         _exit_with_error(exc.code.value, exc.message)
     if events is not None:
         _write_paper_events(events, processed_events=result.processed_events)
+    if timeline_output is not None:
+        _write_timeline(timeline_output, result.timeline)
     sys.stdout.write(f"processed_events={result.processed_events}\n")
     sys.stdout.write(f"created_trades={result.created_trades}\n")
     sys.stdout.write(f"live_orders={str(result.live_orders).lower()}\n")
@@ -85,3 +103,17 @@ def _write_paper_events(path: Path, *, processed_events: int) -> None:
             ),
         ),
     )
+
+
+def _write_timeline(path: Path, timeline: StrategyTimeline) -> None:
+    path.write_text(
+        json.dumps(timeline_to_payload(timeline), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+
+def _paper_strategy_adapter(settings: RuntimeSettings) -> FreqtradeStrategyAdapter | None:
+    if settings.strategy.module == DEMO_STRATEGY_MODULE:
+        return None
+    strategy = load_freqtrade_strategy(settings.strategy.module)
+    return FreqtradeStrategyAdapter.from_strategy(strategy)

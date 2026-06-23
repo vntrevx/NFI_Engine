@@ -17,6 +17,7 @@ class CloseResult:
     open_trades: tuple[OpenTrade, ...]
     closed_trades: tuple[TradeRecord, ...]
     profit: Decimal
+    rejected_signals: int = 0
 
 
 def close_stopped_trades(
@@ -59,18 +60,25 @@ def close_signal_trades(
     remaining = open_trades
     closed: tuple[TradeRecord, ...] = ()
     profit = Decimal(0)
+    rejected = 0
     for signal in signals:
         if signal.signal_type is SignalType.EXIT:
             close_result = _close_first_side_match(
                 open_trades=remaining,
-                side=signal.side,
+                signal=signal,
                 candle=candle,
                 settings=settings,
             )
             remaining = close_result.open_trades
             closed += close_result.closed_trades
             profit += close_result.profit
-    return CloseResult(open_trades=remaining, closed_trades=closed, profit=profit)
+            rejected += close_result.rejected_signals
+    return CloseResult(
+        open_trades=remaining,
+        closed_trades=closed,
+        profit=profit,
+        rejected_signals=rejected,
+    )
 
 
 def close_open_trades_at_end(
@@ -99,7 +107,7 @@ def close_open_trades_at_end(
 def _close_first_side_match(
     *,
     open_trades: tuple[OpenTrade, ...],
-    side: PositionSide,
+    signal: StrategySignal,
     candle: Candle,
     settings: SimulationSettings,
 ) -> CloseResult:
@@ -108,20 +116,25 @@ def _close_first_side_match(
     profit = Decimal(0)
     already_closed = False
     for open_trade in open_trades:
-        if not already_closed and open_trade.side is side:
+        if not already_closed and open_trade.side is signal.side:
             trade = _close_trade(
                 open_trade=open_trade,
                 candle=candle,
                 base_exit_price=candle_close(candle),
                 settings=settings,
-                exit_reason="signal",
+                exit_reason=signal.tag if signal.tag is not None else "signal",
             )
             closed += (trade,)
             profit += trade.profit
             already_closed = True
         else:
             remaining += (open_trade,)
-    return CloseResult(open_trades=remaining, closed_trades=closed, profit=profit)
+    return CloseResult(
+        open_trades=remaining,
+        closed_trades=closed,
+        profit=profit,
+        rejected_signals=0 if already_closed else 1,
+    )
 
 
 def _stoploss_hit(*, side: PositionSide, candle: Candle, stop_price: Decimal) -> bool:

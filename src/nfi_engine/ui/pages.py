@@ -1,29 +1,34 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from nfi_engine.api.models import LogEntryResponse
 from nfi_engine.config import RuntimeSettings
-from nfi_engine.dashboard import DashboardReadModels
-from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.ui.assets_dashboard import DASHBOARD_SCRIPT, DASHBOARD_STYLE
+from nfi_engine.ui.assets_data_lifecycle import DATA_LIFECYCLE_SCRIPT
 from nfi_engine.ui.assets_login import LOGIN_SCRIPT
 from nfi_engine.ui.assets_logs import LOGS_SCRIPT
 from nfi_engine.ui.assets_pairlist import PAIRLIST_SCRIPT
+from nfi_engine.ui.assets_runtime_control import RUNTIME_CONTROL_SCRIPT
 from nfi_engine.ui.assets_settings import SETTINGS_SCRIPT
 from nfi_engine.ui.document import render_document, render_nav
 from nfi_engine.ui.home import render_home_body
+from nfi_engine.ui.home_context import HomeRuntimeContext
 from nfi_engine.ui.i18n import localize, render_i18n_script
 from nfi_engine.ui.i18n_keys import MessageKey
 from nfi_engine.ui.login_page import render_login_body
 from nfi_engine.ui.logs_page import render_logs_body
 from nfi_engine.ui.settings_page import render_settings_body
 
+if TYPE_CHECKING:
+    from nfi_engine.preflight.models import PreflightReport
+
 
 def render_home_page(
     *,
     settings: RuntimeSettings,
     logs: tuple[LogEntryResponse, ...],
-    read_models: DashboardReadModels | None = None,
-    readiness: PreflightReport | None = None,
+    runtime: HomeRuntimeContext | None = None,
     csrf_token: str = "",
 ) -> str:
     locale = settings.ui.locale
@@ -35,11 +40,11 @@ def render_home_page(
         body=render_home_body(
             settings=settings,
             logs=logs,
-            read_models=read_models,
-            readiness=readiness,
+            runtime=runtime or HomeRuntimeContext(),
             nav=render_nav(active="home", locale=locale),
         )
         + render_i18n_script(settings.ui.locale)
+        + RUNTIME_CONTROL_SCRIPT
         + DASHBOARD_SCRIPT,
     )
 
@@ -62,6 +67,8 @@ def render_settings_page(
         )
         + render_i18n_script(settings.ui.locale)
         + SETTINGS_SCRIPT
+        + DATA_LIFECYCLE_SCRIPT
+        + RUNTIME_CONTROL_SCRIPT
         + PAIRLIST_SCRIPT,
     )
 

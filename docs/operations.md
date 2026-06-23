@@ -17,7 +17,10 @@ uv run nfi-engine preflight check --profile local-paper --config examples/spot-p
 
 Preflight checks config validity, profile compatibility, local API binding,
 database/log paths, notifier dry-run readiness, pairlist validity, Docker volume
-shape, and exchange/testnet safety rules.
+shape, and exchange/testnet safety rules. If live intent is present, it also reports
+live hardening blockers for credentials, exchange API permissions, startup
+reconciliation, circuit breakers, and X7 semantic coverage while keeping
+`LIVE_TRADING_OUT_OF_SCOPE` as the startup blocker.
 
 ## Config Inspection
 
@@ -63,3 +66,18 @@ For performance-sensitive issues, attach benchmark evidence from the current
 machine instead of a subjective "feels slow" report. M2 baselines cover dashboard
 snapshot latency, home render timing, chart render timing, startup smoke timing,
 and install smoke timing where practical.
+
+## Current RC Evidence
+
+The current paper/testnet release-candidate evidence root is:
+
+```text
+.omo/evidence/2026-06-21-x7-live-readiness-pi4-rc/
+```
+
+Use that root when answering "where are we now?" for X7 operation. It contains
+operator workflow browser evidence, wallet/API setup gates, testnet lifecycle
+proof, runtime-control safety, update rollback proof, Pi4 install/soak/deploy
+receipts, and the T5A Pi4 X7 benchmark budget resolution. Treat it as
+paper/testnet RC evidence only; live order execution still requires a separate
+approved plan.

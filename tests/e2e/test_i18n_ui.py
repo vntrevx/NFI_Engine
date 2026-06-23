@@ -41,8 +41,13 @@ LOCAL_BEARER = "local-test-bearer"
                 "Local operator login",
                 "First-run setup",
                 "Preview setup",
-                "Balanced",
+                "Dry-run",
                 '"settings.fix_settings":"Fix settings"',
+                "Pause",
+                "Resume",
+                '"settings.runtime_control_state":"Runtime control state"',
+                '"settings.runtime_control_loading":"Sending runtime command..."',
+                '"settings.runtime_control_blocked":"Runtime command blocked"',
             ),
         ),
         (
@@ -65,8 +70,13 @@ LOCAL_BEARER = "local-test-bearer"
                 "로컬 운영자 로그인",
                 "첫 실행 설정",
                 "설정 미리보기",
-                "균형",
+                "드라이런",
                 '"settings.fix_settings":"설정을 수정하세요"',
+                "일시 중지",
+                "재개",
+                '"settings.runtime_control_state":"런타임 제어 상태"',
+                '"settings.runtime_control_loading":"런타임 명령 전송 중..."',
+                '"settings.runtime_control_blocked":"런타임 명령이 차단됨"',
             ),
         ),
         (
@@ -80,17 +90,22 @@ LOCAL_BEARER = "local-test-bearer"
                 "Πρόσφατα γεγονότα",
                 "Η ανανέωση snapshot απέτυχε.",
                 "Bundle υποστήριξης",
-                "Runtime-safe ρυθμίσεις",
+                "Ασφαλείς ρυθμίσεις runtime",
                 "Πύλες ασφάλειας",
-                "Δεν υπάρχει pairlist preview",
+                "Δεν υπάρχει προεπισκόπηση λίστας ζευγών",
                 "Σοβαρότητα",
                 "Αναζήτηση σφάλματος",
                 '"settings.runtime_applied":"runtime εφαρμόστηκε"',
                 "Σύνδεση τοπικού χειριστή",
                 "Ρύθμιση πρώτης εκτέλεσης",
                 "Προεπισκόπηση ρύθμισης",
-                "Ισορροπημένο",
+                "Dry-run",
                 '"settings.fix_settings":"Διορθώστε τις ρυθμίσεις"',
+                "Παύση",
+                "Συνέχιση",
+                '"settings.runtime_control_state":"Κατάσταση ελέγχου runtime"',
+                '"settings.runtime_control_loading":"Αποστολή εντολής runtime..."',
+                '"settings.runtime_control_blocked":"Η εντολή runtime αποκλείστηκε"',
             ),
         ),
     ],
@@ -146,6 +161,11 @@ async def test_home_settings_and_logs_are_localized_without_changing_contracts(
     assert expected[16] in settings_page.text
     assert expected[17] in settings_page.text
     assert expected[18] in settings_page.text
+    assert expected[19] in home.text
+    assert expected[20] in home.text
+    assert expected[21] in settings_page.text
+    assert expected[22] in settings_page.text
+    assert expected[23] in settings_page.text
     assert "CONFIG_VALIDATION_ERROR" in logs.text
     assert all('data-testid="' in page for page in pages)
     assert 'data-testid="login-form"' in login.text

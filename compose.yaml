@@ -5,6 +5,8 @@ services:
     build:
       context: .
     image: nfi-engine:local
+    init: true
+    restart: unless-stopped
     command:
       - nfi-engine
       - serve
@@ -16,17 +18,22 @@ services:
       - "18080"
     env_file:
       - path: examples/docker.env.example
-      - path: .runtime/docker.env
+      - path: ${NFI_ENGINE_RUNTIME_ENV_FILE:-.runtime/docker.env}
         required: false
     environment:
       NFI_ENGINE_ALLOW_CONTAINER_BIND: "1"
       NFI_ENGINE_CONFIG: /config/futures-paper.yaml
     ports:
-      - "127.0.0.1:18080:18080"
+      - "127.0.0.1:${NFI_ENGINE_HOST_PORT:-18080}:18080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - nfi-data:/data
       - nfi-logs:/logs
-      - ./.runtime/config:/config:ro
+      - ${NFI_ENGINE_RUNTIME_CONFIG_DIR:-./.runtime/config}:/config:ro
       - ./examples:/app/examples:ro
     healthcheck:
       test:
@@ -46,12 +53,12 @@ services:
       - --help
     env_file:
       - path: examples/docker.env.example
-      - path: .runtime/docker.env
+      - path: ${NFI_ENGINE_RUNTIME_ENV_FILE:-.runtime/docker.env}
         required: false
     volumes:
       - nfi-data:/data
       - nfi-logs:/logs
-      - ./.runtime/config:/config:ro
+      - ${NFI_ENGINE_RUNTIME_CONFIG_DIR:-./.runtime/config}:/config:ro
       - ./examples:/app/examples:ro
 
   paper:
@@ -70,12 +77,12 @@ services:
       - "25"
     env_file:
       - path: examples/docker.env.example
-      - path: .runtime/docker.env
+      - path: ${NFI_ENGINE_RUNTIME_ENV_FILE:-.runtime/docker.env}
         required: false
     volumes:
       - nfi-data:/data
       - nfi-logs:/logs
-      - ./.runtime/config:/config:ro
+      - ${NFI_ENGINE_RUNTIME_CONFIG_DIR:-./.runtime/config}:/config:ro
       - ./examples:/app/examples:ro
       - ./tests/fixtures:/app/tests/fixtures:ro
 

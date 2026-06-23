@@ -2,6 +2,8 @@
 set -euo pipefail
 
 runtime_dir=".runtime"
+project_name="${COMPOSE_PROJECT_NAME:-nfi-engine}"
+host_port="${NFI_ENGINE_HOST_PORT:-18080}"
 exchange="bybit"
 trading_mode="futures"
 risk_preset="balanced"
@@ -20,7 +22,49 @@ die() {
 }
 
 need_command() {
-  command -v "$1" >/dev/null 2>&1 || die "INSTALL_MISSING_COMMAND: $1"
+  if command -v "$1" >/dev/null 2>&1; then
+    return
+  fi
+  printf 'INSTALL_MISSING_COMMAND: %s\n' "$1" >&2
+  case "$1" in
+    uv)
+      printf 'install_hint=Install uv from https://docs.astral.sh/uv/ and Python 3.12+ with python3 on PATH; then re-run this command.\n' >&2
+      ;;
+    python3)
+      printf 'install_hint=Install Python 3.12+ and ensure python3 is on PATH; then re-run this command.\n' >&2
+      ;;
+    docker)
+      printf 'install_hint=Install Docker with Compose v2 and verify `docker compose version`; then re-run this command.\n' >&2
+      ;;
+    *)
+      printf 'install_hint=Install the missing command and re-run this command.\n' >&2
+      ;;
+  esac
+  exit 1
+}
+
+require_docker_compose() {
+  need_command docker
+  local compose_output
+  if ! compose_output="$(docker compose version 2>&1)"; then
+    printf 'INSTALL_DOCKER_UNAVAILABLE\n' >&2
+    if [ -n "$compose_output" ]; then
+      printf '%s\n' "$compose_output" >&2
+    fi
+    printf 'install_hint=Install Docker with Compose v2 and verify `docker compose version`; then re-run this command.\n' >&2
+    exit 1
+  fi
+}
+
+validate_host_port() {
+  case "$host_port" in
+    "" | *[!0-9]*)
+      die "INSTALL_INVALID_HOST_PORT: $host_port"
+      ;;
+  esac
+  if [ "$host_port" -lt 1 ] || [ "$host_port" -gt 65535 ]; then
+    die "INSTALL_INVALID_HOST_PORT: $host_port"
+  fi
 }
 
 random_token() {
@@ -61,6 +105,14 @@ while [ "$#" -gt 0 ]; do
       runtime_dir="${2:?INSTALL_MISSING_VALUE: --runtime-dir}"
       shift 2
       ;;
+    --project-name)
+      project_name="${2:?INSTALL_MISSING_VALUE: --project-name}"
+      shift 2
+      ;;
+    --host-port)
+      host_port="${2:?INSTALL_MISSING_VALUE: --host-port}"
+      shift 2
+      ;;
     --exchange)
       exchange="${2:?INSTALL_MISSING_VALUE: --exchange}"
       shift 2
@@ -91,6 +143,7 @@ done
 if [ "$live" -eq 1 ] && { [ "$paper" -eq 1 ] || [ "$testnet" -eq 1 ]; }; then
   die "INSTALL_INTENT_CONFLICT: --live cannot be combined with --paper or --testnet"
 fi
+validate_host_port
 
 need_command uv
 need_command python3
@@ -146,27 +199,32 @@ uv run "${setup_args[@]}" >/dev/null
 if [ "$dry_run" -eq 1 ]; then
   printf 'install_plan=dry-run\n'
 else
-  need_command docker
-  docker compose version >/dev/null
-  docker compose up --build -d api
+  require_docker_compose
+  export NFI_ENGINE_HOST_PORT="$host_port"
+  export NFI_ENGINE_RUNTIME_CONFIG_DIR="$config_dir"
+  export NFI_ENGINE_RUNTIME_ENV_FILE="$env_file"
+  export COMPOSE_PROJECT_NAME="$project_name"
+  docker compose --project-name "$project_name" up --build -d api
   for _ in $(seq 1 120); do
-    if curl -fsS http://127.0.0.1:18080/api/v1/ping >/dev/null 2>&1; then
+    if curl -fsS "http://127.0.0.1:${host_port}/api/v1/ping" >/dev/null 2>&1; then
       break
     fi
     sleep 1
   done
-  curl -fsS http://127.0.0.1:18080/api/v1/ping >/dev/null
-  docker compose run --rm cli nfi-engine config validate --config /config/futures-paper.yaml >/dev/null
+  curl -fsS "http://127.0.0.1:${host_port}/api/v1/ping" >/dev/null
+  docker compose --project-name "$project_name" run --rm cli nfi-engine config validate --config /config/futures-paper.yaml >/dev/null
   printf 'install=ok\n'
 fi
 
 duration_seconds="$(( $(date +%s) - started_at ))"
-printf 'url=http://127.0.0.1:18080\n'
+printf 'url=http://127.0.0.1:%s\n' "$host_port"
+printf 'host_port=%s\n' "$host_port"
+printf 'compose_project=%s\n' "$project_name"
 printf 'intent=%s\n' "$intent_name"
 printf 'config=%s\n' "$config_path"
 printf 'env_file=%s\n' "$env_file"
 printf 'login_token_file=%s\n' "$env_file"
-printf 'logs=docker compose logs -f api\n'
-printf 'uninstall=bash scripts/uninstall.sh --yes\n'
+printf 'logs=NFI_ENGINE_HOST_PORT=%s docker compose --project-name %s logs -f api\n' "$host_port" "$project_name"
+printf 'uninstall=bash scripts/uninstall.sh --yes --runtime-dir %s --project-name %s\n' "$runtime_dir" "$project_name"
 printf 'secrets=redacted\n'
 printf 'install_duration_seconds=%s\n' "$duration_seconds"

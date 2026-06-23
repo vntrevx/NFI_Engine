@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from nfi_engine.config.enums import ConfigErrorCode, Locale, LogLevel
+from nfi_engine.config.enums import ConfigErrorCode, Locale, LogLevel, RiskProfileName
 from nfi_engine.config.errors import ConfigLoadError
 from nfi_engine.config.loader import load_runtime_settings, validate_runtime_settings
 from nfi_engine.config.metadata import (
@@ -25,6 +25,7 @@ from nfi_engine.config.models import (
     StrategySettings,
     UiSettings,
 )
+from nfi_engine.exchange.permissions import ExchangeApiPermissionState
 
 __all__ = [
     "ApiSettings",
@@ -34,6 +35,7 @@ __all__ = [
     "ConfigLoadError",
     "DatabaseSettings",
     "EngineSettings",
+    "ExchangeApiPermissionState",
     "ExchangeSettings",
     "FieldGroup",
     "FieldMetadata",
@@ -43,6 +45,7 @@ __all__ = [
     "NotificationSettings",
     "PaperRunSettings",
     "PluginSettings",
+    "RiskProfileName",
     "RiskSettings",
     "RuntimeSettings",
     "StrategySettings",

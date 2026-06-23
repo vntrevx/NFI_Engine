@@ -56,3 +56,44 @@ def test_runtime_settings_reject_unknown_locale() -> None:
     # When / Then: config parsing rejects it at the boundary.
     with pytest.raises(ValueError, match=r"ui\.locale"):
         RuntimeSettings.model_validate(raw_settings)
+
+
+def test_settings_operator_select_options_are_localized() -> None:
+    # Given: Korean and Greek operator Settings pages.
+    korean = render_settings_page(settings=RuntimeSettings(ui=UiSettings(locale=Locale.KO)))
+    greek = render_settings_page(settings=RuntimeSettings(ui=UiSettings(locale=Locale.EL)))
+
+    # When / Then: Settings field options use the i18n catalog, not title-cased ids.
+    assert '<option value="futures">선물</option>' in korean
+    assert '<option value="balanced" selected>균형</option>' in korean
+    assert '<option value="futures">Συμβόλαια</option>' in greek
+    assert '<option value="balanced" selected>Ισορροπημένο</option>' in greek
+    assert '<option value="futures">Futures</option>' not in korean
+    assert '<option value="balanced" selected>Balanced</option>' not in greek
+
+
+def test_greek_catalog_localizes_visible_operator_labels() -> None:
+    # Given: visible operator labels that are not machine codes.
+    visible_labels = {
+        MessageKey.COMMON_BLOCK: "Αποκλεισμός",
+        MessageKey.COMMON_PASSED: "Πέρασε",
+        MessageKey.COMMON_WARN: "Προσοχή",
+        MessageKey.SAVE_DRAFT: "Αποθήκευση προσχεδίου",
+        MessageKey.SETTINGS_RUNTIME_SAFE: "Ασφαλές runtime",
+        MessageKey.SETTINGS_RUNTIME_SAFE_TITLE: "Ασφαλείς ρυθμίσεις runtime",
+        MessageKey.SETTINGS_UPDATE_ROLLBACK: "Επαναφορά",
+        MessageKey.SETTINGS_UPDATE_TITLE: "Ενημέρωση προγραμματιστή",
+        MessageKey.HOME_PAIRLIST: "Λίστα ζευγών",
+        MessageKey.PAIRLIST_BLACKLIST: "Λίστα αποκλεισμού",
+        MessageKey.PAIRLIST_BLACKLIST_ARIA: "λίστα αποκλεισμού ζευγών",
+        MessageKey.PAIRLIST_PREVIEW_EMPTY: "Δεν υπάρχει προεπισκόπηση λίστας ζευγών",
+        MessageKey.PAIRLIST_TITLE: "Λίστα ζευγών",
+        MessageKey.SETUP_FETCH_WALLET: "Φόρτωση υπολοίπου πορτοφολιού",
+        MessageKey.SETUP_WALLET_NOT_FETCHED: (
+            "\u03a4\u03bf υπόλοιπο πορτοφολιού δεν έχει φορτωθεί ακόμη."
+        ),
+    }
+
+    # When / Then: Greek user-facing copy is translated while machine terms can stay stable.
+    for key, expected in visible_labels.items():
+        assert localize(Locale.EL, key) == expected

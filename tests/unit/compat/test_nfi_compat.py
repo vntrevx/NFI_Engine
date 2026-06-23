@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from nfi_engine.compat import load_nfi_metadata, run_nfi_compatibility_check
+from nfi_engine.strategy import CallbackSupportLevel
 
 
 def test_nfi_metadata_pins_upstream_sha() -> None:
@@ -24,3 +25,19 @@ def test_nfi_fixture_reports_supported_adapter_surface() -> None:
     assert result.full_x7_parity is False
     assert "populate_entry_trend" in result.detected_callbacks
     assert "full_x7_strategy_import" in result.unsupported_surfaces
+    assert "populate_indicators" in result.supported_callbacks
+    assert "informative_pairs" in result.partial_callbacks
+    assert "full_x7_strategy_import" in result.excluded_surfaces
+
+
+def test_unknown_callback_is_excluded_from_compat_report() -> None:
+    # Given/When
+    result = run_nfi_compatibility_check(
+        "tests.fixtures.strategies.nfi_shape:UnsupportedCallbackStrategy",
+    )
+
+    # Then
+    excluded = tuple(
+        item for item in result.callback_support if item.level is CallbackSupportLevel.EXCLUDED
+    )
+    assert tuple(item.name for item in excluded) == ("custom_entry_price",)

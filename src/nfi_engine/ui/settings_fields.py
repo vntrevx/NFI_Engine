@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from html import escape
-from typing import Final
+from typing import Final, assert_never
 
 from nfi_engine.config import FieldGroup, FieldMetadata, Locale, RuntimeSettings, frontend_metadata
 from nfi_engine.ui.i18n import localize
 from nfi_engine.ui.i18n_keys import MessageKey
+from nfi_engine.ui.settings_field_values import field_value
 
 NUMERIC_FIELDS: Final = frozenset(
     (
         "risk.stake_usdt",
+        "risk.allocation_cap_pct",
         "risk.max_daily_loss_pct",
         "risk.leverage",
         "risk.max_leverage",
@@ -27,11 +28,36 @@ NUMERIC_FIELDS: Final = frozenset(
         "notifications.max_attempts",
     ),
 )
-BOOLEAN_FIELDS: Final = frozenset(("ui.read_only", "notifications.enabled"))
+BOOLEAN_FIELDS: Final = frozenset(
+    ("risk.expert_risk_confirmed", "ui.read_only", "notifications.enabled")
+)
+PERMISSION_FIELDS: Final = frozenset(
+    (
+        "exchange.permission_read",
+        "exchange.permission_trade",
+        "exchange.permission_futures",
+        "exchange.permission_withdrawal",
+        "exchange.permission_ip_allowlist",
+    )
+)
+OPTION_LABELS: Final[dict[str, MessageKey]] = {
+    "aggressive": MessageKey.SETUP_OPTION_AGGRESSIVE,
+    "balanced": MessageKey.SETUP_OPTION_BALANCED,
+    "conservative": MessageKey.SETUP_OPTION_CONSERVATIVE,
+    "disabled": MessageKey.SETUP_OPTION_DISABLED,
+    "enabled": MessageKey.SETUP_OPTION_ENABLED,
+    "expert": MessageKey.SETUP_OPTION_EXPERT,
+    "futures": MessageKey.SETUP_OPTION_FUTURES,
+    "not_applicable": MessageKey.SETUP_OPTION_NOT_APPLICABLE,
+    "safe": MessageKey.SETUP_OPTION_SAFE,
+    "spot": MessageKey.SETUP_OPTION_SPOT,
+    "unknown": MessageKey.SETUP_OPTION_UNKNOWN,
+}
 SIMPLE_FIELD_ORDER: Final = (
     "exchange.name",
     "exchange.trading_mode",
     "ui.locale",
+    "risk.risk_profile",
     "risk.stake_usdt",
     "risk.max_open_trades",
 )
@@ -79,7 +105,7 @@ def _advanced_fields() -> tuple[FieldMetadata, ...]:
 
 
 def _field_row(*, settings: RuntimeSettings, field: FieldMetadata, locale: Locale) -> str:
-    value = _field_value(settings=settings, path=field.path)
+    value = field_value(settings=settings, path=field.path)
     note = localize(
         locale,
         MessageKey.SETTINGS_RUNTIME_SAFE
@@ -89,13 +115,13 @@ def _field_row(*, settings: RuntimeSettings, field: FieldMetadata, locale: Local
     return f"""
 <div class="field-row">
   <label for="{escape(field.path)}">{escape(_field_label(field.path, locale=locale))}</label>
-  {_control(field=field, value=value)}
+  {_control(field=field, value=value, locale=locale)}
   <span class="field-note">{note}</span>
 </div>
 """
 
 
-def _control(*, field: FieldMetadata, value: str) -> str:
+def _control(*, field: FieldMetadata, value: str, locale: Locale) -> str:
     escaped_path = escape(field.path)
     common = (
         f'id="{escaped_path}" name="{escaped_path}" '
@@ -106,12 +132,15 @@ def _control(*, field: FieldMetadata, value: str) -> str:
     if field.path in BOOLEAN_FIELDS:
         checked = " checked" if value == "true" else ""
         return f'<input type="checkbox" {common}{checked}{disabled}>'
-    if field.path == "exchange.trading_mode":
-        return _select(common=common, value=value, options=("spot", "futures"), disabled=disabled)
-    if field.path == "ui.locale":
-        return _select(common=common, value=value, options=tuple(locale.value for locale in Locale))
-    if field.path == "logging.level":
-        return _select(common=common, value=value, options=("DEBUG", "INFO", "WARNING", "ERROR"))
+    select_control = _select_control(
+        field=field,
+        value=value,
+        common=common,
+        disabled=disabled,
+        locale=locale,
+    )
+    if select_control is not None:
+        return select_control
     if field.path in NUMERIC_FIELDS:
         step = "1" if field.path.endswith(("trades", "seconds", "attempts")) else "0.01"
         min_value = "1" if field.path.endswith(("trades", "attempts")) else "0"
@@ -122,68 +151,103 @@ def _control(*, field: FieldMetadata, value: str) -> str:
     return f'<input type="text" value="{escape(value)}" {common}{disabled}>'
 
 
-def _select(*, common: str, value: str, options: tuple[str, ...], disabled: str = "") -> str:
-    choices = "\n".join(_option(value=value, option=option) for option in options)
+def _select_control(
+    *,
+    field: FieldMetadata,
+    value: str,
+    common: str,
+    disabled: str,
+    locale: Locale,
+) -> str | None:
+    if field.path == "exchange.trading_mode":
+        return _select(
+            common=common,
+            value=value,
+            options=("spot", "futures"),
+            disabled=disabled,
+            locale=locale,
+        )
+    if field.path == "risk.risk_profile":
+        return _select(
+            common=common,
+            value=value,
+            options=("safe", "balanced", "expert"),
+            locale=locale,
+        )
+    if field.path in PERMISSION_FIELDS:
+        return _select(
+            common=common,
+            value=value,
+            options=("unknown", "enabled", "disabled", "not_applicable"),
+            disabled=disabled,
+            locale=locale,
+        )
+    if field.path == "ui.locale":
+        return _locale_select(common=common, value=value)
+    if field.path == "logging.level":
+        return _select(
+            common=common,
+            value=value,
+            options=("DEBUG", "INFO", "WARNING", "ERROR"),
+            locale=locale,
+        )
+    return None
+
+
+def _select(
+    *,
+    common: str,
+    value: str,
+    options: tuple[str, ...],
+    locale: Locale,
+    disabled: str = "",
+) -> str:
+    choices = "\n".join(_option(value=value, option=option, locale=locale) for option in options)
     return f"<select {common}{disabled}>{choices}</select>"
 
 
-def _option(*, value: str, option: str) -> str:
+def _locale_select(*, common: str, value: str) -> str:
+    choices = "\n".join(_locale_option(value=value, locale=locale) for locale in Locale)
+    return f"<select {common}>{choices}</select>"
+
+
+def _option(*, value: str, option: str, locale: Locale) -> str:
     selected = " selected" if value == option else ""
-    return f'<option value="{escape(option)}"{selected}>{escape(option.title())}</option>'
+    label_key = OPTION_LABELS.get(option)
+    label = option.title() if label_key is None else localize(locale, label_key)
+    return f'<option value="{escape(option)}"{selected}>{escape(label)}</option>'
+
+
+def _locale_option(*, value: str, locale: Locale) -> str:
+    selected = " selected" if value == locale.value else ""
+    return (
+        f'<option value="{escape(locale.value)}"{selected}>{escape(_locale_label(locale))}</option>'
+    )
+
+
+def _locale_label(locale: Locale) -> str:
+    match locale:
+        case Locale.EN:
+            return "English"
+        case Locale.KO:
+            return "한국어"
+        case Locale.EL:
+            return "Ελληνικά"
+        case unreachable:
+            assert_never(unreachable)
 
 
 def _field_label(path: str, *, locale: Locale) -> str:
     labels: dict[str, MessageKey] = {
         "exchange.name": MessageKey.FIELD_EXCHANGE_NAME,
         "exchange.trading_mode": MessageKey.FIELD_TRADING_MODE,
+        "exchange.permission_withdrawal": MessageKey.FIELD_PERMISSION_WITHDRAWAL,
         "ui.locale": MessageKey.FIELD_UI_LOCALE,
+        "risk.risk_profile": MessageKey.FIELD_RISK_PROFILE,
+        "risk.expert_risk_confirmed": MessageKey.FIELD_EXPERT_RISK_CONFIRMED,
         "risk.stake_usdt": MessageKey.FIELD_RISK_STAKE,
         "risk.max_open_trades": MessageKey.FIELD_MAX_OPEN_TRADES,
     }
     if path in labels:
         return localize(locale, labels[path])
     return path.replace("_", " ").replace(".", " / ").title()
-
-
-def _field_value(*, settings: RuntimeSettings, path: str) -> str:
-    return _field_values(settings).get(path, "")
-
-
-def _field_values(settings: RuntimeSettings) -> dict[str, str]:
-    margin_mode = (
-        "" if settings.exchange.margin_mode is None else settings.exchange.margin_mode.value
-    )
-    return {
-        "exchange.name": settings.exchange.name,
-        "exchange.trading_mode": settings.exchange.trading_mode.value,
-        "exchange.margin_mode": margin_mode,
-        "risk.stake_usdt": _decimal(settings.risk.stake_usdt),
-        "risk.max_daily_loss_pct": _decimal(settings.risk.max_daily_loss_pct),
-        "risk.leverage": _decimal(settings.risk.leverage),
-        "risk.max_leverage": _decimal(settings.risk.max_leverage),
-        "risk.liquidation_buffer": _decimal(settings.risk.liquidation_buffer),
-        "risk.max_open_trades": str(settings.risk.max_open_trades),
-        "risk.stoploss_pct": _decimal(settings.risk.stoploss_pct),
-        "risk.minimal_roi": _decimal(settings.risk.minimal_roi),
-        "risk.cooldown_seconds": str(settings.risk.cooldown_seconds),
-        "risk.locked_pairs": settings.risk.locked_pairs,
-        "backtest.stoploss_pct": _decimal(settings.backtest.stoploss_pct),
-        "backtest.fee_rate": _decimal(settings.backtest.fee_rate),
-        "backtest.slippage_rate": _decimal(settings.backtest.slippage_rate),
-        "backtest.max_open_trades": str(settings.backtest.max_open_trades),
-        "ui.locale": settings.ui.locale.value,
-        "ui.read_only": _bool(settings.ui.read_only),
-        "logging.level": settings.logging.level.value,
-        "notifications.enabled": _bool(settings.notifications.enabled),
-        "notifications.jsonl_path": settings.notifications.jsonl_path,
-        "notifications.timeout_seconds": _decimal(settings.notifications.timeout_seconds),
-        "notifications.max_attempts": str(settings.notifications.max_attempts),
-    }
-
-
-def _decimal(value: Decimal) -> str:
-    return format(value, "f")
-
-
-def _bool(value: bool) -> str:
-    return str(value).lower()

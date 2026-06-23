@@ -9,6 +9,7 @@ DOCKER_DOC: Final = PROJECT_ROOT / "docs" / "docker.md"
 UI_DOC: Final = PROJECT_ROOT / "docs" / "ui.md"
 OPERATIONS_DOC: Final = PROJECT_ROOT / "docs" / "operations.md"
 CONTRIBUTING_DOC: Final = PROJECT_ROOT / "docs" / "contributing.md"
+QUALITY_GATE_SCRIPT: Final = PROJECT_ROOT / "scripts" / "quality_gate.sh"
 ZERO_OCTET: Final = "0"
 PUBLIC_BIND_LITERAL: Final = f"{ZERO_OCTET}.{ZERO_OCTET}.{ZERO_OCTET}.{ZERO_OCTET}"
 
@@ -78,3 +79,41 @@ def test_contributor_docs_define_clean_room_and_feature_design_rules() -> None:
     # Then: contributors get the original-product constraints before coding.
     for fragment in required_fragments:
         assert fragment in content
+
+
+def test_quality_budget_governance_is_documented_and_runnable() -> None:
+    # Given: contributor docs, README, and the local quality gate script.
+    contributing = CONTRIBUTING_DOC.read_text(encoding="utf-8")
+    readme = README.read_text(encoding="utf-8")
+    script = QUALITY_GATE_SCRIPT.read_text(encoding="utf-8")
+
+    # When: T17 quality governance text is inspected.
+    required_doc_fragments = (
+        "scripts/quality_gate.sh --docs-only",
+        "scripts/quality_gate.sh --strict",
+        "scripts/quality_gate.sh --coverage-only",
+        "touched-code coverage",
+        "250 pure LOC",
+        "Performance Budget Review",
+        "no repeated config parse",
+        "no unbounded DB read",
+        "no unbounded candle/frame materialization",
+        "no UI payload growth without a cap",
+        "no new dependency without size/startup justification",
+    )
+    required_script_fragments = (
+        "--docs-only",
+        "--strict",
+        "--coverage-only",
+        "NFI_ENGINE_COVERAGE_MIN",
+        "uv run pytest",
+        "--cov-fail-under",
+    )
+
+    # Then: the governance policy cannot silently disappear from docs or shell surface.
+    for fragment in required_doc_fragments:
+        assert fragment in contributing
+    assert "bash scripts/quality_gate.sh --docs-only" in readme
+    assert "coverage smoke" in readme
+    for fragment in required_script_fragments:
+        assert fragment in script

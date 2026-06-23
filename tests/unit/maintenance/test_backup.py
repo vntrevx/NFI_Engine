@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import shutil
 import sqlite3
 from pathlib import Path
@@ -16,6 +18,38 @@ from nfi_engine.maintenance import (
     read_database_version,
     verify_backup,
 )
+
+
+def _write_traversal_archive(archive: Path) -> None:
+    payload = b"unsafe"
+    manifest = {
+        "engine_version": "test",
+        "generated_at": "2026-06-17T00:00:00+00:00",
+        "redacted": True,
+        "config_hash": "",
+        "dependency_lock_hash": "",
+        "files": ["../../outside.txt"],
+        "checksums": {"../../outside.txt": hashlib.sha256(payload).hexdigest()},
+    }
+    with ZipFile(archive, mode="w", compression=ZIP_DEFLATED) as opened:
+        opened.writestr("manifest.json", json.dumps(manifest).encode())
+        opened.writestr("../../outside.txt", payload)
+
+
+def _write_manifest_only_archive(archive: Path) -> None:
+    files: tuple[str, ...] = ()
+    checksums: dict[str, str] = {}
+    manifest = {
+        "engine_version": "test",
+        "generated_at": "2026-06-17T00:00:00+00:00",
+        "redacted": True,
+        "config_hash": "",
+        "dependency_lock_hash": "",
+        "files": files,
+        "checksums": checksums,
+    }
+    with ZipFile(archive, mode="w", compression=ZIP_DEFLATED) as opened:
+        opened.writestr("manifest.json", json.dumps(manifest).encode())
 
 
 def test_backup_create_writes_redacted_manifested_archive(tmp_path: Path) -> None:
@@ -65,6 +99,28 @@ def test_backup_verify_rejects_invalid_archive(tmp_path: Path) -> None:
     assert captured.value.code is MaintenanceErrorCode.BACKUP_INVALID
 
 
+def test_backup_verify_rejects_traversal_archive_members(tmp_path: Path) -> None:
+    # Given: an archive whose manifest points outside the restore root.
+    archive = tmp_path / "traversal.zip"
+    _write_traversal_archive(archive)
+
+    # When / Then: verification fails closed before the archive can be trusted.
+    with pytest.raises(MaintenanceError) as captured:
+        verify_backup(archive)
+    assert captured.value.code is MaintenanceErrorCode.BACKUP_INVALID
+
+
+def test_backup_verify_rejects_incomplete_manifest_only_archive(tmp_path: Path) -> None:
+    # Given: an allowlisted archive that contains no required backup payload members.
+    archive = tmp_path / "manifest-only.zip"
+    _write_manifest_only_archive(archive)
+
+    # When / Then: verification fails closed instead of blessing an unusable backup.
+    with pytest.raises(MaintenanceError) as captured:
+        verify_backup(archive)
+    assert captured.value.code is MaintenanceErrorCode.BACKUP_INVALID
+
+
 def test_backup_verify_detects_tampered_member_checksum(tmp_path: Path) -> None:
     # Given: a backup archive whose config member is replaced after manifest creation.
     output = tmp_path / "backup.zip"
@@ -83,6 +139,25 @@ def test_backup_verify_detects_tampered_member_checksum(tmp_path: Path) -> None:
 
     # Then: manifest verification fails without trusting the stale manifest.
     assert verification.manifest_valid is False
+
+
+def test_restore_dry_run_rejects_tampered_member_checksum(tmp_path: Path) -> None:
+    # Given: a backup archive whose config member no longer matches its manifest.
+    output = tmp_path / "backup.zip"
+    create_backup(config=Path("examples/futures-paper.yaml"), output=output)
+    with ZipFile(output) as archive:
+        members = tuple(
+            (name, b"{}" if name == "config.json" else archive.read(name))
+            for name in archive.namelist()
+        )
+    with ZipFile(output, mode="w", compression=ZIP_DEFLATED) as archive:
+        for name, data in members:
+            archive.writestr(name, data)
+
+    # When / Then: restore preview fails closed instead of printing restore steps.
+    with pytest.raises(MaintenanceError) as captured:
+        preview_backup_restore(archive=output, dry_run=True)
+    assert captured.value.code is MaintenanceErrorCode.BACKUP_INVALID
 
 
 def test_backup_create_includes_existing_sqlite_database(tmp_path: Path) -> None:
@@ -125,6 +200,17 @@ def test_restore_dry_run_reports_plan_without_applying(tmp_path: Path) -> None:
     assert plan.apply is False
     assert plan.manifest_valid is True
     assert "restore config.json" in plan.steps
+
+
+def test_restore_apply_is_rejected_until_mutating_restore_exists(tmp_path: Path) -> None:
+    # Given: a verified backup archive.
+    output = tmp_path / "backup.zip"
+    create_backup(config=Path("examples/futures-paper.yaml"), output=output)
+
+    # When / Then: mutating restore stays locked until the apply path is implemented.
+    with pytest.raises(MaintenanceError) as exc_info:
+        preview_backup_restore(archive=output, dry_run=False)
+    assert exc_info.value.code is MaintenanceErrorCode.BACKUP_RESTORE_APPLY_UNSUPPORTED
 
 
 def test_restore_apply_requires_verified_backup_reference(tmp_path: Path) -> None:
