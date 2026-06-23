@@ -5,6 +5,7 @@ from typing import Final
 
 PROJECT_ROOT: Final = Path(__file__).resolve().parents[3]
 README: Final = PROJECT_ROOT / "README.md"
+KOREAN_README: Final = PROJECT_ROOT / "README.ko.md"
 DOCKER_DOC: Final = PROJECT_ROOT / "docs" / "docker.md"
 UI_DOC: Final = PROJECT_ROOT / "docs" / "ui.md"
 OPERATIONS_DOC: Final = PROJECT_ROOT / "docs" / "operations.md"
@@ -33,6 +34,30 @@ def test_quickstart_is_one_command_first_run_path() -> None:
         assert fragment in quickstart
     assert "uv sync" not in quickstart
     assert "uv run nfi-engine serve" not in quickstart
+
+
+def test_readme_has_korean_operator_version_and_docs_gate() -> None:
+    # Given: public README files and the docs quality gate.
+    english = README.read_text(encoding="utf-8")
+    korean = KOREAN_README.read_text(encoding="utf-8")
+    script = QUALITY_GATE_SCRIPT.read_text(encoding="utf-8")
+
+    # When: the public entrypoints are inspected.
+    required_korean_fragments = (
+        "paper/testnet RC",
+        "bash scripts/install.sh --yes --paper --testnet",
+        "실거래 주문 실행",
+        "차단",
+        "언어 선택",
+        "README.md",
+    )
+
+    # Then: Korean operators get a maintained entrypoint with the same safety boundary.
+    assert "[한국어](README.ko.md)" in english
+    assert "[English](README.md)" in korean
+    assert "README.ko.md" in script
+    for fragment in required_korean_fragments:
+        assert fragment in korean
 
 
 def test_docs_explain_first_run_secrets_language_and_uninstall() -> None:

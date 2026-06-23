@@ -11,6 +11,7 @@ from typing import Final
 
 PROJECT_ROOT: Final = Path(__file__).resolve().parents[1]
 DOCS_ROOT: Final = PROJECT_ROOT / "docs"
+KOREAN_README: Final = PROJECT_ROOT / "README.ko.md"
 RELEASE_WORDING_POLICY: Final = DOCS_ROOT / "release-wording.md"
 
 ALLOW_CONTEXT_MARKERS: Final = (
@@ -129,7 +130,7 @@ def main(argv: tuple[str, ...]) -> int:
 
 def _default_paths() -> tuple[Path, ...]:
     docs = tuple(sorted(DOCS_ROOT.glob("*.md")))
-    return (PROJECT_ROOT / "README.md", *docs)
+    return (PROJECT_ROOT / "README.md", KOREAN_README, *docs)
 
 
 def _scan_file(path: Path) -> tuple[WordingViolation, ...]:

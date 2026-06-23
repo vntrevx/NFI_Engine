@@ -1,25 +1,52 @@
 # NFI Engine
 
-NFI Engine is an original, clean-room crypto trading engine for spot and futures
-paper trading, deterministic simulation, and NFI-shaped strategy compatibility
-research.
+[English](README.md) | [한국어](README.ko.md)
+
+NFI Engine is an original, clean-room crypto trading engine for spot/futures
+paper trading, testnet-oriented operator workflows, deterministic simulation,
+and native NFI-shaped X7 strategy research.
 
 It is not Freqtrade, not an official NostalgiaForInfinity project, and not a
-fork of either codebase. Freqtrade is used only as a feature benchmark for what a
-serious operator engine should cover. Upstream NFI strategy code is not vendored
-in this repository.
+fork of either codebase. Freqtrade is used only as a feature benchmark for the
+kind of operating surface a serious engine should cover. Upstream NFI strategy
+code is not vendored or runtime-imported by this repository.
 
-Milestone 1 is dry-run first. Real-money trading, risky live shortcuts, and
-profit claims are out of scope.
+## Current Status
 
-Milestone 2 focuses on operator usability and product identity: simple setup,
-home dashboard, local chart snapshots, English/Korean/Greek UI text,
-one-command Docker install/uninstall, benchmark evidence, and a release gate
-that proves the local operator flow before it is called shippable. See
-[docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md) for the
-clean-room feature map and NFI Engine differentiation rules. The current S1
-product boundary is split into
-[docs/nfi-x7-compatibility.md](docs/nfi-x7-compatibility.md) and
+As of 2026-06-24 KST, the project is an evidence-backed paper/testnet release
+candidate. It is not a real-money live-order release.
+
+| Area | Current boundary |
+| --- | --- |
+| Strategy runtime | Native NFI-shaped X7 semantic runtime is available for dry-run, paper, and testnet-oriented paths. |
+| Operator flow | One-line install/uninstall, token login, Home cockpit, Settings setup, wallet balance fetch, runtime controls, logs, and EN/KO/EL UI are implemented. |
+| Safety | Auth, CSRF, read-only mode, live-intent blockers, preflight, wallet caps, reconciliation, circuit breakers, and update rollback gates stay enforced. |
+| Exchange support | Exchanges are promoted by capability evidence. Candidate and generic-unverified exchanges do not enter runtime trade paths. |
+| Raspberry Pi 4 | Internal RC evidence exists for one measured Pi4 lane, with `claim_allowed=false`; it is not a public speed comparison. |
+| Live execution | Real-money live order execution remains blocked pending a separate approved design and evidence set. |
+
+The current status summary is maintained in
+[docs/release-status.md](docs/release-status.md). Public wording is governed by
+[docs/release-wording.md](docs/release-wording.md).
+
+## Product Shape
+
+NFI Engine is designed as a local operator console first: fewer decisions,
+explicit safety explanations, typed runtime boundaries, reproducible evidence,
+and small modules that can be maintained on low-resource hardware. The current
+product lane includes:
+
+- guided setup for exchange API credentials, permission audit, recommended 3x leverage, explicit wallet balance fetch, allocation, spot/futures, and dry-run/live intent;
+- Home cockpit for runtime state, readiness, risk, wallet, chart snapshots, pairlist, recent errors, and safe controls;
+- Settings and Logs pages with local-only browser behavior, no CDN assets, no browser token storage, and redacted support output;
+- clean-room X7 inspection and paper/testnet signal runtime without copying upstream strategy source;
+- one-line shell, npm, and Bun install/uninstall wrappers;
+- deterministic docs, release wording, benchmark, browser QA, and quality gates.
+
+See [docs/freqtrade-feature-coverage.md](docs/freqtrade-feature-coverage.md) for
+the clean-room feature map and NFI Engine differentiation rules. X7 runtime
+boundaries live in [docs/nfi-x7-compatibility.md](docs/nfi-x7-compatibility.md),
+and exchange status lives in
 [docs/exchange-support-matrix.md](docs/exchange-support-matrix.md).
 
 ## Quickstart

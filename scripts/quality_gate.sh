@@ -65,6 +65,7 @@ case "$mode" in
       pyproject.toml \
       docs/contributing.md \
       README.md \
+      README.ko.md \
       scripts/quality_gate.sh \
       tests/unit/docs/test_operator_docs.py
     run uv run ruff format --check tests/unit/docs/test_operator_docs.py
