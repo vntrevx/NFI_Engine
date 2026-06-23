@@ -231,14 +231,6 @@ npm run nfi:browser-qa
 Home/Settings/Logs desktop/mobile screenshot, external request 차단, browser token
 storage 비어 있음을 확인한다.
 
-## 현재 남은 일
-
-1. G074 full quality gate를 완료하거나, 남은 실패를 pre-existing blocker와 제품 blocker로 분리한다.
-2. Docker Desktop/WSL integration이 정상화되면 fresh final smoke를 다시 실행한다.
-3. live-execution은 이 RC와 분리된 별도 승인 plan으로만 다룬다.
-4. Pi4는 cooling hardware 변경 후 long-run thermal evidence를 다시 캡처한다.
-5. exchange verified 승격은 fixture, sandbox, testnet evidence가 있는 경우에만 허용한다.
-
 ## 더 보기
 
 - [README.md](README.md)
