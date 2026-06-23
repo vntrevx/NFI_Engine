@@ -9,7 +9,6 @@ from nfi_engine.strategy.nfi_x7.coverage import (
     X7CoverageReport,
     X7CoverageStatus,
     build_x7_coverage_report,
-    worktree_evidence_available,
 )
 from nfi_engine.strategy.nfi_x7.metadata import X7_METADATA
 
@@ -60,13 +59,7 @@ def build_x7_semantic_status(
 ) -> X7SemanticStatus:
     if not is_x7_native_settings(settings):
         return _disabled_status()
-    report = (
-        coverage_report
-        if coverage_report is not None
-        else build_x7_coverage_report(
-            require_evidence_artifacts=worktree_evidence_available(),
-        )
-    )
+    report = coverage_report if coverage_report is not None else build_x7_coverage_report()
     preflight_blocker = _preflight_blocker(readiness)
     coverage_blocker = _coverage_blocker(report)
     blocked_reason = preflight_blocker or coverage_blocker

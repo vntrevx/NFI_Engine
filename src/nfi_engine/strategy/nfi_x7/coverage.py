@@ -138,7 +138,7 @@ def build_x7_coverage_report(
     module_ledgers: tuple[X7CoverageModule, ...] = TARGET_MODULES,
     *,
     project_root: Path | None = None,
-    require_evidence_artifacts: bool = True,
+    require_evidence_artifacts: bool = False,
 ) -> X7CoverageReport:
     root = Path.cwd() if project_root is None else project_root
     return X7CoverageReport(

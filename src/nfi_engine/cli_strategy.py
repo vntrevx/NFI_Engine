@@ -20,7 +20,6 @@ from nfi_engine.strategy.nfi_x7 import (
     X7SemanticStatus,
     build_x7_coverage_report,
     build_x7_semantic_status,
-    worktree_evidence_available,
 )
 
 strategy_app: Final[typer.Typer] = typer.Typer(help="Inspect strategy adapter contracts.")
@@ -144,9 +143,7 @@ def _inspect_payload(payload_input: _InspectionPayloadInput) -> StrategyInspectP
 def _x7_coverage_report(strategy: object) -> X7CoverageReport | None:
     if not isinstance(strategy, X7NativeStrategy):
         return None
-    return build_x7_coverage_report(
-        require_evidence_artifacts=worktree_evidence_available(),
-    )
+    return build_x7_coverage_report()
 
 
 def _coverage_payload(report: X7CoverageReport) -> CoverageReportPayload:

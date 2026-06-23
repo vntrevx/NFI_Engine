@@ -76,7 +76,11 @@ def test_native_x7_coverage_blocks_verified_module_when_evidence_is_missing(
     )
 
     # When
-    coverage = build_x7_coverage_report(modules, project_root=tmp_path)
+    coverage = build_x7_coverage_report(
+        modules,
+        project_root=tmp_path,
+        require_evidence_artifacts=True,
+    )
 
     # Then
     assert coverage.is_full_semantic_coverage is False
@@ -112,6 +116,29 @@ def test_native_x7_coverage_uses_packaged_manifest_when_evidence_gate_is_disable
     assert coverage.modules[0].blocker is None
 
 
+def test_native_x7_coverage_default_ignores_incidental_worktree_evidence(
+    tmp_path: Path,
+) -> None:
+    # Given
+    (tmp_path / ".omo" / "evidence").mkdir(parents=True)
+    modules = (
+        X7CoverageModule(
+            name="metadata",
+            status=X7CoverageStatus.VERIFIED,
+            evidence_path=".omo/evidence/missing.md",
+        ),
+    )
+
+    # When
+    coverage = build_x7_coverage_report(modules, project_root=tmp_path)
+
+    # Then
+    assert coverage.is_full_semantic_coverage is True
+    assert coverage.covered_modules == ("metadata",)
+    assert coverage.pending_modules == ()
+    assert coverage.modules[0].status is X7CoverageStatus.VERIFIED
+
+
 def test_native_x7_coverage_can_only_be_full_when_all_modules_are_verified_with_evidence(
     tmp_path: Path,
 ) -> None:
@@ -133,7 +160,11 @@ def test_native_x7_coverage_can_only_be_full_when_all_modules_are_verified_with_
     )
 
     # When
-    coverage = build_x7_coverage_report(modules, project_root=tmp_path)
+    coverage = build_x7_coverage_report(
+        modules,
+        project_root=tmp_path,
+        require_evidence_artifacts=True,
+    )
 
     # Then
     assert coverage.is_full_semantic_coverage is True
