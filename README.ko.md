@@ -13,7 +13,7 @@ vendoring하지 않고 runtime import하지 않는다.
 
 ## 현재 상태
 
-기준일: 2026-06-24 KST
+기준일: 2026-06-26 KST
 
 현재 NFI Engine은 증거가 붙은 **paper/testnet RC** 상태다.
 
@@ -23,7 +23,7 @@ vendoring하지 않고 runtime import하지 않는다.
 | 영역 | 현재 경계 |
 | --- | --- |
 | 전략 runtime | native NFI-shaped X7 semantic runtime을 dry-run, paper, testnet 중심 경로에서 사용할 수 있다. |
-| 운영 workflow | 한 줄 설치/제거, token login, Home cockpit, Settings setup, wallet balance fetch, runtime control, Logs, EN/KO/EL UI가 구현되어 있다. |
+| 운영 workflow | 한 줄 설치/제거, admin/password login, Home cockpit, Settings setup, wallet balance fetch, runtime control, Logs, EN/KO/EL UI가 구현되어 있다. |
 | 안전 게이트 | auth, CSRF, read-only mode, live-intent blocker, preflight, wallet cap, reconciliation, circuit breaker, update rollback gate를 유지한다. |
 | 거래소 지원 | 거래소는 capability evidence로만 승격한다. candidate/generic-unverified 거래소는 runtime trade path에 들어가지 않는다. |
 | Raspberry Pi 4 | 한 대의 Pi4 기준 내부 RC evidence가 있다. `claim_allowed=false`라서 공개 속도 비교 문구로 쓰지 않는다. |
@@ -58,7 +58,7 @@ bun run nfi:install:dry-run
 첫 실행 순서:
 
 1. `http://127.0.0.1:18080/`을 연다.
-2. `.runtime/docker.env`의 local operator token으로 로그인한다. installer는 `login_token_file=.runtime/docker.env` 경로만 출력하고 token 값은 출력하지 않는다.
+2. `admin`과 `.runtime/docker.env`의 generated operator password로 로그인한다. installer는 env file 경로만 출력하고 password 값은 출력하지 않는다.
 3. Home에서 runtime state, Setup Doctor, Safety Explainer, chart status, runtime controls, recent errors, pairlist 상태를 확인한다.
 4. Settings에서 exchange, exchange API key, exchange API secret, API permission audit, 권장 3x leverage, risk profile, wallet balance fetch, allocation amount, futures/spot, dry-run/live intent를 설정한다.
 5. 기본은 dry-run이다. withdrawal 성격의 API 권한은 live setup을 막고, expert risk는 명시 확인을 요구한다. API key/secret 입력값은 write-only이며 출력에서 redacted 처리된다.
@@ -85,7 +85,8 @@ bun run nfi:uninstall:purge:dry-run
 
 실제 exchange credential은 issue, chat log, commit file, shell history에
 남기지 않는다. 로컬 실험은 paper/testnet credential을 우선 사용하고, 실험 후
-rotate한다.
+rotate한다. installer에서는 exchange credential을 process argument로 넘기지
+않고, `0600` credential file 또는 `NFI_ENGINE_SETUP_*` 환경변수로만 전달한다.
 
 ## X7 Runtime 확인
 
@@ -119,9 +120,9 @@ uv run nfi-engine serve --config examples/futures-paper.yaml --host 127.0.0.1 --
 - `http://127.0.0.1:18080/settings`
 - `http://127.0.0.1:18080/logs`
 
-`api.auth_token`이 설정되어 있으면 browser login screen으로 session을 만든 뒤
-protected page를 사용한다. mutation API는 session cookie와
-`x-nfi-csrf-token`이 필요하며, token은 browser local storage에 저장하지 않는다.
+local operator username/password로 browser session을 만든 뒤 protected page를
+사용한다. mutation API는 session cookie와 `x-nfi-csrf-token`이 필요하며,
+credentials는 browser local storage에 저장하지 않는다.
 
 ## Console
 

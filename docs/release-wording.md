@@ -56,16 +56,25 @@ statement (for example: "implemented", "under development", "planned", or
 
 ## Current RC wording boundary
 
-As of 2026-06-24, the evidence-backed public boundary is:
+As of 2026-06-26, the evidence-backed public boundary is:
 
 - The project has a native NFI-shaped X7 paper/testnet release-candidate lane.
 - The current RC evidence root is
   `.omo/evidence/2026-06-21-x7-live-readiness-pi4-rc/`.
+- The current final-publication evidence root is
+  `.omo/evidence/2026-06-26-nfi-engine-final-product-publication/`.
+- The 2026-06-26 Docker final smoke may be described as a fresh local
+  release-smoke pass when the statement names the T6 evidence artifact.
 - The Pi4 evidence may be described as measured internal RC evidence for one
-  Raspberry Pi 4 device, with `claim_allowed=false`.
+  Raspberry Pi 4 device, with `claim_allowed=false`; the 2026-06-26 probe was
+  cool and reachable but retained historical throttle flags, so it is not a
+  public performance claim.
 - The G072 UI evidence may be described as local browser QA for no-forced-refresh
   language/runtime updates, protected browser/API paths, and desktop/mobile
   KO/EN/EL visual checks.
+- Real priority-exchange testnet credentials were not present in T8; wording may
+  say the lane is `blocked-no-key`, not that real testnet balances/orders were
+  validated.
 - Real-money live order execution remains blocked pending a separate approved
   plan and evidence set.
 

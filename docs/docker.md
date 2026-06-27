@@ -15,9 +15,9 @@ The installer creates `.runtime/config/futures-paper.yaml`,
 `.runtime/.nfi-engine-runtime`, and `.runtime/docker.env`, starts the API
 service, waits for `/api/v1/ping`, and validates the generated config inside the
 CLI container. The generated env file is written with `0600` permissions and
-command output never prints exchange keys, API secrets, or the generated API
-token. The output prints `login_token_file=.runtime/docker.env` so the operator
-knows where to read the local browser login token.
+command output never prints exchange keys, API secrets, or the generated
+operator password. The output prints the runtime env-file path so the operator
+knows where to read the local browser password.
 
 The npm and Bun commands are thin wrappers around the same shell installer and
 do not add runtime dependencies. Use the dry-run path to verify the generated
@@ -47,16 +47,37 @@ during Pi4 verification, not to expose the service publicly.
 
 ## First Run
 
-After install, open `http://127.0.0.1:18080/` and paste the operator token from
-`.runtime/docker.env` into the login screen. The Home screen shows Setup Doctor,
+After install, open `http://127.0.0.1:18080/` and log in as `admin` with the
+operator password from `.runtime/docker.env`. The Home screen shows Setup Doctor,
 Safety Explainer, chart status, recent errors, pairlist state, and the next
 maintenance action. Settings keeps the normal first-run form short: exchange,
 spot/futures, paper/testnet intent, risk preset, and optional exchange
 credentials.
 
-Exchange key and secret entry is write-only in the operator flow. Values are
-redacted from command output, support reports, and docs evidence. Use paper or
-testnet credentials for local trials.
+Exchange credential entry is write-only in the operator flow. Standard
+`api_key` / `api_secret` fields and exchange-specific fields such as
+`passphrase`, `memo`, `operator_id`, `account_address`, and `api_wallet_signer`
+are redacted from command output, support reports, and docs evidence. Use paper
+or testnet credentials for local trials.
+
+The installer rejects secret-bearing command arguments. Pass setup credentials
+through owner-only environment variables or an owner-only credentials file:
+
+```bash
+cat > .runtime/setup-credentials.env <<'EOF'
+api_key=...
+api_secret=...
+passphrase=...
+EOF
+chmod 600 .runtime/setup-credentials.env
+bash scripts/install.sh --yes --testnet --exchange bitget \
+  --credentials-file .runtime/setup-credentials.env
+```
+
+The file accepts `api_key`, `api_secret`, `passphrase`, `memo`, `operator_id`,
+`account_address`, and `api_wallet_signer`. Matching `NFI_ENGINE_SETUP_*`
+environment variables are also accepted and are converted to a temporary
+owner-only file before the setup CLI is invoked.
 
 ## Build
 
@@ -122,15 +143,16 @@ The repository `examples/` directory is mounted read-only into `/app/examples`.
 
 ## Secrets
 
-Do not commit exchange keys or real API tokens. `examples/docker.env.example`
+Do not commit exchange keys, operator passwords, or real API tokens.
+`examples/docker.env.example`
 contains only local defaults. Override secrets from your shell or an untracked
 env file:
 
 ```bash
-NFI_ENGINE_API_TOKEN="$(openssl rand -hex 32)" docker compose up -d api
+NFI_ENGINE_OPERATOR_PASSWORD="$(openssl rand -hex 32)" docker compose up -d api
 ```
 
-Weak tokens are rejected outside local/dev/test environments.
+Weak operator credentials are rejected outside local/dev/test environments.
 
 ## CLI In Container
 

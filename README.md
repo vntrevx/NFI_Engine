@@ -13,13 +13,13 @@ code is not vendored or runtime-imported by this repository.
 
 ## Current Status
 
-As of 2026-06-24 KST, the project is an evidence-backed paper/testnet release
+As of 2026-06-26 KST, the project is an evidence-backed paper/testnet release
 candidate. It is not a real-money live-order release.
 
 | Area | Current boundary |
 | --- | --- |
 | Strategy runtime | Native NFI-shaped X7 semantic runtime is available for dry-run, paper, and testnet-oriented paths. |
-| Operator flow | One-line install/uninstall, token login, Home cockpit, Settings setup, wallet balance fetch, runtime controls, logs, and EN/KO/EL UI are implemented. |
+| Operator flow | One-line install/uninstall, admin/password login, Home cockpit, Settings setup, wallet balance fetch, runtime controls, logs, and EN/KO/EL UI are implemented. |
 | Safety | Auth, CSRF, read-only mode, live-intent blockers, preflight, wallet caps, reconciliation, circuit breakers, and update rollback gates stay enforced. |
 | Exchange support | Exchanges are promoted by capability evidence. Candidate and generic-unverified exchanges do not enter runtime trade paths. |
 | Raspberry Pi 4 | Internal RC evidence exists for one measured Pi4 lane, with `claim_allowed=false`; it is not a public speed comparison. |
@@ -76,7 +76,7 @@ bun run nfi:install:dry-run
 First Run:
 
 1. Open `http://127.0.0.1:18080/`.
-2. Paste the local operator token from `.runtime/docker.env` into the login screen. The installer prints `login_token_file=.runtime/docker.env`, never the token value.
+2. Log in as `admin` with the generated operator password from `.runtime/docker.env`. The installer prints the env-file path, never the password value.
 3. Use Home to check the operator cockpit, Setup Doctor, Safety Explainer, chart status, runtime controls, recent errors, and pairlist state.
 4. Use Settings for first-run setup: exchange, exchange API key, exchange API secret, API permission audit, recommended 3x leverage, risk profile, explicit wallet balance fetch, allocated amount, futures/spot, and dry-run/live.
 5. Keep dry-run selected unless the live confirmation path is intentionally being tested. Withdrawal-like API permission blocks live setup, expert risk requires explicit confirmation, and API key/secret fields are write-only and redacted from output.
@@ -111,6 +111,9 @@ bun run nfi:uninstall:purge:dry-run
 Do not enter real exchange credentials into issues, chat logs, committed files,
 or shell history. For local setup, prefer testnet or paper credentials and rotate
 them after experiments.
+For installer flows, pass exchange credentials through a `0600` credentials file
+or `NFI_ENGINE_SETUP_*` environment variables; secret-bearing install argv is
+rejected.
 
 ## Developer Setup
 
@@ -131,10 +134,9 @@ Open:
 - `http://127.0.0.1:18080/settings`
 - `http://127.0.0.1:18080/logs`
 
-When `api.auth_token` is configured, create a browser session through the login
-screen before using protected pages. Mutating API calls require the session
-cookie and `x-nfi-csrf-token`; the token is never stored in browser local
-storage.
+Create a browser session with the local operator username/password before using
+protected pages. Mutating API calls require the session cookie and
+`x-nfi-csrf-token`; credentials are never stored in browser local storage.
 
 ## Docker Quickstart
 
@@ -279,7 +281,7 @@ internal RC gating, not public speed or live-money wording.
 
 The current dated status summary is maintained in
 [docs/release-status.md](docs/release-status.md). It separates completed,
-partial, blocked, and next work for the current RC lane.
+partial, blocked, and evidence-bound status for the current RC lane.
 
 The release gate includes Docker install/login/Home smoke, local benchmark JSON,
 a supplied-baseline regression failure check, install/uninstall dry-run receipts,

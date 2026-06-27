@@ -24,7 +24,7 @@ def test_quickstart_is_one_command_first_run_path() -> None:
     required_fragments = (
         "bash scripts/install.sh --yes --paper --testnet",
         "http://127.0.0.1:18080/",
-        "login_token_file=.runtime/docker.env",
+        "generated operator password from `.runtime/docker.env`",
         "bash scripts/uninstall.sh --yes",
         "First Run",
     )
