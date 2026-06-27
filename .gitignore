@@ -34,3 +34,6 @@ support-bundle*.tgz
 data/
 logs/
 .omo/
+brainstorming/
+AGENTS.md
+**/AGENTS.md
