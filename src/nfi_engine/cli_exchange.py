@@ -16,7 +16,10 @@ from nfi_engine.cli_exchange_capabilities import (
 )
 from nfi_engine.cli_exchange_lifecycle import lifecycle_app
 from nfi_engine.cli_exchange_runtime import runtime_check
-from nfi_engine.cli_exchange_testnet import write_testnet_pilot_report
+from nfi_engine.cli_exchange_testnet import (
+    run_testnet_execute_cli,
+    write_testnet_pilot_report,
+)
 from nfi_engine.config import ConfigLoadError, RuntimeSettings, load_runtime_settings
 from nfi_engine.domain import (
     DomainError,
@@ -51,6 +54,7 @@ exchange_app: Final[typer.Typer] = typer.Typer(
 )
 exchange_app.add_typer(lifecycle_app, name="lifecycle")
 exchange_app.command(name="runtime-check")(runtime_check)
+exchange_app.command(name="testnet-execute")(run_testnet_execute_cli)
 DEFAULT_PRICE: Final = Decimal(100)
 DEFAULT_RECONCILE_FIXTURE: Final = Path("tests/fixtures/exchange/reconcile_match.json")
 
