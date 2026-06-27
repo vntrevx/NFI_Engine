@@ -5,6 +5,7 @@ from typing import assert_never
 
 from nfi_engine.config import RuntimeSettings
 from nfi_engine.domain import TradingMode
+from nfi_engine.exchange.credential_requirements import missing_runtime_credential_fields
 from nfi_engine.exchange.permissions import ExchangeApiPermissionState
 from nfi_engine.preflight.models import PreflightCheck, PreflightCode, PreflightStatus
 from nfi_engine.strategy.nfi_x7.coverage import build_x7_coverage_report
@@ -26,7 +27,8 @@ def live_readiness_checks(settings: RuntimeSettings) -> tuple[PreflightCheck, ..
 
 
 def _credential_check(settings: RuntimeSettings) -> PreflightCheck:
-    if _present(settings.exchange.api_key) and _present(settings.exchange.api_secret):
+    missing = missing_runtime_credential_fields(settings)
+    if not missing:
         return _check(
             PreflightCode.LIVE_EXCHANGE_CREDENTIALS,
             PreflightStatus.PASS,
@@ -35,7 +37,7 @@ def _credential_check(settings: RuntimeSettings) -> PreflightCheck:
     return _check(
         PreflightCode.LIVE_EXCHANGE_CREDENTIALS,
         PreflightStatus.BLOCK,
-        "live mode requires exchange api_key and api_secret",
+        f"live mode requires exchange credential fields: {','.join(missing)}",
     )
 
 

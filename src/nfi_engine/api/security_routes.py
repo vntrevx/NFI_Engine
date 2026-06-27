@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from nfi_engine.api.models import (
     SecurityAuditLogResponse,
     SecuritySessionResponse,
+    SessionLoginRequest,
     SessionLogoutResponse,
 )
 from nfi_engine.api.security import SecurityContext
@@ -31,15 +32,19 @@ def add_security_audit_route(router: APIRouter, security: SecurityContext) -> No
 
 def _login(
     security: SecurityContext,
-) -> Callable[[Response, HTTPAuthorizationCredentials | None], SecuritySessionResponse]:
+) -> Callable[
+    [Response, SessionLoginRequest | None, HTTPAuthorizationCredentials | None],
+    SecuritySessionResponse,
+]:
     def endpoint(
         response: Response,
+        login: SessionLoginRequest | None = None,
         credentials: Annotated[
             HTTPAuthorizationCredentials | None,
             Depends(bearer_scheme),
         ] = None,
     ) -> SecuritySessionResponse:
-        session = security.create_login_session(credentials)
+        session = security.create_login_session(credentials, login)
         security.set_session_cookies(response, session)
         return SecuritySessionResponse(
             role=session.role.value,

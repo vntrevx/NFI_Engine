@@ -20,17 +20,19 @@ def test_install_script_dry_run_generates_runtime_config_and_redacted_output(
         "--testnet",
         "--runtime-dir",
         str(runtime_dir),
-        "--api-key",
-        "install-key",
-        "--api-secret",
-        "install-secret",
         "--host-port",
         "18113",
         "--project-name",
         "nfi-engine-test",
         "--dry-run",
     ]
-    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     config = runtime_dir / "config" / "futures-paper.yaml"
     env_file = runtime_dir / "docker.env"
     marker = runtime_dir / ".nfi-engine-runtime"
@@ -63,12 +65,11 @@ def test_install_script_dry_run_generates_runtime_config_and_redacted_output(
         f"uninstall=bash scripts/uninstall.sh --yes --runtime-dir {runtime_dir} "
         "--project-name nfi-engine-test"
     ) in result.stdout
-    assert "install-key" not in result.stdout
-    assert "install-secret" not in result.stdout
     assert config.exists()
     assert env_file.exists()
     assert marker.read_text(encoding="utf-8") == "nfi-engine-runtime=1\n"
     assert stat.S_IMODE(env_file.stat().st_mode) == 0o600
+    assert not tuple(runtime_dir.glob("setup-credentials.*"))
 
 
 def test_install_script_is_docker_first_and_uses_safe_runtime_files() -> None:
@@ -85,6 +86,8 @@ def test_install_script_is_docker_first_and_uses_safe_runtime_files() -> None:
     assert "chmod 600" in script
     assert ".runtime" in script
     assert "curl | bash" not in script
+    assert 'setup_args+=(--api-secret "$api_secret")' not in script
+    assert 'setup_args+=(--passphrase "$passphrase")' not in script
 
 
 def test_install_script_refuses_invalid_host_port(tmp_path: Path) -> None:

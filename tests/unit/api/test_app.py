@@ -51,7 +51,7 @@ class RuntimeControlPayload(BaseModel):
 
 @pytest.mark.anyio
 async def test_ping_is_public_when_no_token_is_sent() -> None:
-    # Given: an API app with a configured operator token.
+    # Given: an API app with configured operator credentials.
     client = _client(create_app(settings=_settings()))
 
     # When: the public ping endpoint is called without credentials.
@@ -107,6 +107,29 @@ async def test_control_endpoints_apply_state_transitions_when_authorized() -> No
         "stopping",
         "stopped",
     }
+
+
+@pytest.mark.anyio
+async def test_session_login_accepts_operator_username_and_password() -> None:
+    # Given: a local operator console configured with a browser login password.
+    local_login_value = "local-login-value"
+    client = _client(create_app(settings=_settings(operator_password=local_login_value)))
+
+    # When: the operator logs in with username/password, then retries with a bad password.
+    login = await client.post(
+        "/api/v1/session/login",
+        json={"username": "admin", "password": local_login_value},
+    )
+    bad_login = await client.post(
+        "/api/v1/session/login",
+        json={"username": "admin", "password": "wrong-password"},
+    )
+
+    # Then: the browser login path creates the same session contract without bearer headers.
+    assert login.status_code == 200
+    assert "nfi_engine_session" in login.headers["set-cookie"]
+    assert SessionPayload.model_validate_json(login.content).role == "operator"
+    assert bad_login.status_code == 401
 
 
 @pytest.mark.anyio
@@ -187,7 +210,7 @@ async def test_websocket_route_accepts_session_cookie() -> None:
 
 
 def test_auth_validation_rejects_weak_token_outside_local_environment() -> None:
-    # Given: a production environment with an operator token that is only for local QA.
+    # Given: a production environment with an operator secret that is only for local QA.
     settings = _settings(bearer="test-token", environment="production")
 
     # When/Then: startup auth validation rejects the weak secret.
@@ -199,10 +222,13 @@ def _settings(
     *,
     bearer: str = LOCAL_BEARER,
     environment: str = "local",
+    operator_password: str | None = None,
 ) -> RuntimeSettings:
     return RuntimeSettings(
         engine=EngineSettings(environment=environment),
-        api=ApiSettings.model_validate({"auth_token": bearer}),
+        api=ApiSettings.model_validate(
+            {"auth_token": bearer, "operator_password": operator_password},
+        ),
     )
 
 

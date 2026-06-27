@@ -9,28 +9,46 @@ import typer
 
 from nfi_engine.domain import TradingMode
 from nfi_engine.setup import RiskPreset, SetupError, SetupIntent, SetupRequest, write_setup_config
+from nfi_engine.setup.credential_file import (
+    SetupCredentialFileError,
+    SetupCredentialValues,
+    load_setup_credentials_file,
+)
 
 setup_app: Final[typer.Typer] = typer.Typer(help="Generate first-run runtime config.")
+SECRET_SETUP_ARGUMENTS: Final = (
+    "--api-key",
+    "--api-secret",
+    "--passphrase",
+    "--memo",
+    "--operator-id",
+    "--account-address",
+    "--api-wallet-signer",
+)
 
 
-@setup_app.command("init")
+@setup_app.command(
+    "init",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
 def init_setup(
+    ctx: typer.Context,
     config: Annotated[Path, typer.Option("--config", dir_okay=False)],
     exchange: Annotated[str, typer.Option("--exchange")],
     trading_mode: Annotated[TradingMode, typer.Option("--trading-mode")],
     paper: Annotated[bool, typer.Option("--paper")] = False,
     testnet: Annotated[bool, typer.Option("--testnet")] = False,
     live: Annotated[bool, typer.Option("--live")] = False,
-    api_key: Annotated[str, typer.Option("--api-key", envvar="NFI_ENGINE_SETUP_API_KEY")] = "",
-    api_secret: Annotated[
-        str,
-        typer.Option("--api-secret", envvar="NFI_ENGINE_SETUP_API_SECRET"),
-    ] = "",
+    credentials_file: Annotated[
+        Path | None,
+        typer.Option("--credentials-file", dir_okay=False),
+    ] = None,
     risk_preset: Annotated[RiskPreset, typer.Option("--risk-preset")] = RiskPreset.BALANCED,
     non_interactive: Annotated[bool, typer.Option("--non-interactive")] = False,
     confirm_live: Annotated[bool, typer.Option("--confirm-live")] = False,
     force: Annotated[bool, typer.Option("--force")] = False,
 ) -> None:
+    _reject_extra_args(tuple(ctx.args))
     if not non_interactive:
         _exit_with_setup_error(
             SetupError(
@@ -39,12 +57,18 @@ def init_setup(
             )
         )
     started_at = perf_counter()
+    file_credentials = _credentials_file(credentials_file)
     request = SetupRequest(
         exchange=exchange,
         trading_mode=trading_mode,
         intent=_intent(paper=paper, testnet=testnet, live=live),
-        api_key=api_key,
-        api_secret=api_secret,
+        api_key=file_credentials.api_key,
+        api_secret=file_credentials.api_secret,
+        passphrase=file_credentials.passphrase,
+        memo=file_credentials.memo,
+        operator_id=file_credentials.operator_id,
+        account_address=file_credentials.account_address,
+        api_wallet_signer=file_credentials.api_wallet_signer,
         risk_preset=risk_preset,
         live_trading_confirmed=confirm_live,
     )
@@ -71,6 +95,34 @@ def _intent(*, paper: bool, testnet: bool, live: bool) -> SetupIntent:
     if live:
         return SetupIntent.LIVE
     return SetupIntent.PAPER
+
+
+def _credentials_file(credentials_file: Path | None) -> SetupCredentialValues:
+    if credentials_file is None:
+        return SetupCredentialValues()
+    try:
+        return load_setup_credentials_file(credentials_file)
+    except SetupCredentialFileError as exc:
+        _exit_with_setup_error(SetupError(code=exc.code, message=exc.message))
+
+
+def _reject_extra_args(extra_args: tuple[str, ...]) -> None:
+    if len(extra_args) == 0:
+        return
+    if any(_is_secret_argument(arg) for arg in extra_args):
+        _exit_with_setup_error(
+            SetupError(
+                code="SETUP_SECRET_ARGUMENT_REJECTED",
+                message="use --credentials-file for exchange credentials",
+            )
+        )
+    _exit_with_setup_error(
+        SetupError(code="SETUP_UNKNOWN_ARGUMENT", message="unknown setup argument")
+    )
+
+
+def _is_secret_argument(arg: str) -> bool:
+    return any(arg == flag or arg.startswith(f"{flag}=") for flag in SECRET_SETUP_ARGUMENTS)
 
 
 def _exit_with_setup_error(exc: SetupError) -> NoReturn:

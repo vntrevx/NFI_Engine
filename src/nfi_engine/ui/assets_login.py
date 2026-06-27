@@ -10,10 +10,12 @@ const loginMsg = (key) => window.NFI_I18N?.[key] || key;
 if (loginForm) {
   loginForm.onsubmit = async (event) => {
     event.preventDefault();
-    const token = loginForm.elements.token.value.trim();
+    const username = loginForm.elements.username.value.trim();
+    const password = loginForm.elements.password.value;
     const response = await fetch('/api/v1/session/login', {
       method: 'POST',
-      headers: {'Authorization': `Bearer ${token}`}
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
     });
     if (response.ok) {
       window.location.reload();

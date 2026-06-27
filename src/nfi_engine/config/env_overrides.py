@@ -12,6 +12,11 @@ ENV_OVERRIDES: Final = (
     ("NFI_ENGINE__ENGINE__LIVE_TRADING_CONFIRMED", ("engine", "live_trading_confirmed")),
     ("NFI_ENGINE__EXCHANGE__API_KEY", ("exchange", "api_key")),
     ("NFI_ENGINE__EXCHANGE__API_SECRET", ("exchange", "api_secret")),
+    ("NFI_ENGINE__EXCHANGE__PASSPHRASE", ("exchange", "passphrase")),
+    ("NFI_ENGINE__EXCHANGE__MEMO", ("exchange", "memo")),
+    ("NFI_ENGINE__EXCHANGE__OPERATOR_ID", ("exchange", "operator_id")),
+    ("NFI_ENGINE__EXCHANGE__ACCOUNT_ADDRESS", ("exchange", "account_address")),
+    ("NFI_ENGINE__EXCHANGE__API_WALLET_SIGNER", ("exchange", "api_wallet_signer")),
     ("NFI_ENGINE__EXCHANGE__TRADING_MODE", ("exchange", "trading_mode")),
     ("NFI_ENGINE__EXCHANGE__MARGIN_MODE", ("exchange", "margin_mode")),
     ("NFI_ENGINE__RISK__STAKE_USDT", ("risk", "stake_usdt")),
@@ -20,6 +25,8 @@ ENV_OVERRIDES: Final = (
     ("NFI_ENGINE__RISK__MAX_OPEN_TRADES", ("risk", "max_open_trades")),
     ("NFI_ENGINE__RISK__LIQUIDATION_BUFFER", ("risk", "liquidation_buffer")),
     ("NFI_ENGINE__API__AUTH_TOKEN", ("api", "auth_token")),
+    ("NFI_ENGINE__API__OPERATOR_USERNAME", ("api", "operator_username")),
+    ("NFI_ENGINE__API__OPERATOR_PASSWORD", ("api", "operator_password")),
     ("NFI_ENGINE__LOGGING__LEVEL", ("logging", "level")),
 )
 

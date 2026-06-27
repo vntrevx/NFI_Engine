@@ -57,10 +57,10 @@ class AuditLogPayload(BaseModel):
 async def test_session_login_logout_and_expiry_when_operator_uses_console() -> None:
     # Given: a token-protected local console.
     async with _client(create_app(settings=_settings())) as client:
-        # When: the operator logs in with the bearer token.
+        # When: the operator logs in with username/password.
         unauthenticated_settings = await client.get("/settings")
         unauthenticated_audit = await client.get("/api/v1/security/audit")
-        login = await client.post("/api/v1/session/login", headers=_auth_headers())
+        login = await client.post("/api/v1/session/login", json=_login_payload())
         session = SessionPayload.model_validate_json(login.content)
         settings_page = await client.get("/settings")
         current = await client.get("/api/v1/session/current")
@@ -73,7 +73,9 @@ async def test_session_login_logout_and_expiry_when_operator_uses_console() -> N
     # Then: a session cookie and CSRF token are issued, then invalidated on logout.
     assert unauthenticated_settings.status_code == 401
     assert 'data-testid="login-root"' in unauthenticated_settings.text
-    assert 'data-testid="login-token"' in unauthenticated_settings.text
+    assert 'data-testid="login-username"' in unauthenticated_settings.text
+    assert 'data-testid="login-password"' in unauthenticated_settings.text
+    assert "Operator token" not in unauthenticated_settings.text
     assert unauthenticated_audit.status_code == 401
     assert login.status_code == 200
     assert "nfi_engine_session" in login.headers["set-cookie"]
@@ -89,7 +91,7 @@ async def test_session_login_logout_and_expiry_when_operator_uses_console() -> N
     expired_settings = _settings(session_ttl_seconds=0)
     async with _client(create_app(settings=expired_settings)) as client:
         # When: the operator logs in and immediately uses the session.
-        expired_login = await client.post("/api/v1/session/login", headers=_auth_headers())
+        expired_login = await client.post("/api/v1/session/login", json=_login_payload())
         expired_session = SessionPayload.model_validate_json(expired_login.content)
         expired_current = await client.get(
             "/api/v1/session/current",
@@ -246,6 +248,10 @@ def _auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {LOCAL_BEARER}"}
 
 
+def _login_payload() -> dict[str, str]:
+    return {"username": "admin", "password": LOCAL_BEARER}
+
+
 def _csrf_headers(session: SessionPayload) -> dict[str, str]:
     return {"x-nfi-csrf-token": session.csrf_token}
 
@@ -256,7 +262,7 @@ def _csrf_token_from_page(html: str) -> str:
 
 
 async def _login(client: AsyncClient) -> SessionPayload:
-    response = await client.post("/api/v1/session/login", headers=_auth_headers())
+    response = await client.post("/api/v1/session/login", json=_login_payload())
     assert response.status_code == 200
     return SessionPayload.model_validate_json(response.content)
 

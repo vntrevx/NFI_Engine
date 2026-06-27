@@ -197,6 +197,9 @@ async def test_localized_pages_do_not_leak_obvious_setup_or_login_english(
 
     leaked = (
         "Local operator login",
+        "Use the local admin account created during install.",
+        "Username",
+        "Password",
         "Operator token",
         "Paste the token from the generated local runtime env file.",
         "First-run setup",

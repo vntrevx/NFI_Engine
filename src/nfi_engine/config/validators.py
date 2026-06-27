@@ -8,6 +8,7 @@ from nfi_engine.config.errors import ConfigLoadError
 from nfi_engine.config.models import RuntimeSettings
 from nfi_engine.domain import DomainError, Leverage, LiquidationBuffer, MarginMode, TradingMode
 from nfi_engine.exchange.capabilities import get_exchange_profile
+from nfi_engine.exchange.credential_requirements import missing_runtime_credential_fields
 
 
 def validate_runtime_settings_model(*, settings: RuntimeSettings, path: Path) -> None:
@@ -157,9 +158,12 @@ def _validate_live_trading(*, settings: RuntimeSettings, path: Path) -> None:
             message="live_trading requires live_trading_confirmed=true",
             path=path,
         )
-    if not settings.exchange.api_key or not settings.exchange.api_secret:
+    missing_credentials = missing_runtime_credential_fields(settings)
+    if missing_credentials:
         raise ConfigLoadError(
             code=ConfigErrorCode.MISSING_EXCHANGE_KEY,
-            message="live_trading requires exchange api_key and api_secret",
+            message=(
+                f"live_trading requires exchange credential fields: {','.join(missing_credentials)}"
+            ),
             path=path,
         )

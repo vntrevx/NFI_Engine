@@ -7,12 +7,17 @@ from typing import NoReturn, assert_never, override
 
 from nfi_engine.config import ConfigLoadError, validate_runtime_settings
 from nfi_engine.config.enums import RiskProfileName
-from nfi_engine.config.models import EngineSettings, ExchangeSettings, RiskSettings, RuntimeSettings
+from nfi_engine.config.models import EngineSettings, RiskSettings, RuntimeSettings
 from nfi_engine.domain import MarginMode, TradingMode
 from nfi_engine.events import REDACTED_TEXT
 from nfi_engine.events.redaction import redact_text
 from nfi_engine.exchange.permissions import audit_exchange_api_permissions
 from nfi_engine.risk.profiles import get_risk_profile
+from nfi_engine.setup.credentials import (
+    exchange_settings_from_request,
+    extra_exchange_config_lines,
+    setup_credential_values,
+)
 from nfi_engine.setup.models import RiskPreset, SetupIntent, SetupPlan, SetupRequest
 
 PREVIEW_PATH = Path("<setup-preview>")
@@ -93,6 +98,14 @@ def render_setup_config(settings: RuntimeSettings) -> str:
             f"  testnet: {_bool(settings.exchange.testnet)}",
             f"  api_key: {_nullable(settings.exchange.api_key)}",
             f"  api_secret: {_nullable(settings.exchange.api_secret)}",
+        )
+    )
+    lines.extend(
+        f"  {field}: {_yaml_scalar(value)}"
+        for field, value in extra_exchange_config_lines(settings)
+    )
+    lines.extend(
+        (
             f"  permission_read: {_yaml_scalar(settings.exchange.permission_read.value)}",
             f"  permission_trade: {_yaml_scalar(settings.exchange.permission_trade.value)}",
             f"  permission_futures: {_yaml_scalar(settings.exchange.permission_futures.value)}",
@@ -125,18 +138,9 @@ def _settings_from_request(request: SetupRequest) -> RuntimeSettings:
             live_trading=request.intent is SetupIntent.LIVE,
             live_trading_confirmed=request.live_trading_confirmed,
         ),
-        exchange=ExchangeSettings(
-            name=request.exchange,
-            trading_mode=request.trading_mode,
+        exchange=exchange_settings_from_request(
+            request,
             margin_mode=_margin_mode(request),
-            testnet=request.intent is not SetupIntent.LIVE,
-            api_key=request.api_key or None,
-            api_secret=request.api_secret or None,
-            permission_read=request.permission_read,
-            permission_trade=request.permission_trade,
-            permission_futures=request.permission_futures,
-            permission_withdrawal=request.permission_withdrawal,
-            permission_ip_allowlist=request.permission_ip_allowlist,
         ),
         risk=_risk_settings(request),
         ui=RuntimeSettings().ui.model_copy(update={"locale": request.locale}),
@@ -235,7 +239,7 @@ def _redact_config(*, config_text: str, request: SetupRequest) -> str:
 
 
 def _secrets(request: SetupRequest) -> tuple[str, ...]:
-    return tuple(secret for secret in (request.api_key, request.api_secret) if secret)
+    return setup_credential_values(request)
 
 
 def _nullable(value: str | None) -> str:

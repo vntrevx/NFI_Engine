@@ -61,7 +61,13 @@ def _support_secret_values(settings: RuntimeSettings) -> tuple[str, ...]:
     values = (
         settings.exchange.api_key,
         settings.exchange.api_secret,
+        settings.exchange.passphrase,
+        settings.exchange.memo,
+        settings.exchange.operator_id,
+        settings.exchange.account_address,
+        settings.exchange.api_wallet_signer,
         settings.api.auth_token,
+        settings.api.operator_password,
         settings.notifications.webhook_url,
         settings.notifications.discord_webhook_url,
         settings.notifications.telegram_bot_token,

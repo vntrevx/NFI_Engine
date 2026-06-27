@@ -9,6 +9,13 @@ trading_mode="futures"
 risk_preset="balanced"
 api_key="${NFI_ENGINE_SETUP_API_KEY:-}"
 api_secret="${NFI_ENGINE_SETUP_API_SECRET:-}"
+passphrase="${NFI_ENGINE_SETUP_PASSPHRASE:-}"
+memo="${NFI_ENGINE_SETUP_MEMO:-}"
+operator_id="${NFI_ENGINE_SETUP_OPERATOR_ID:-}"
+account_address="${NFI_ENGINE_SETUP_ACCOUNT_ADDRESS:-}"
+api_wallet_signer="${NFI_ENGINE_SETUP_API_WALLET_SIGNER:-}"
+credentials_file="${NFI_ENGINE_SETUP_CREDENTIALS_FILE:-}"
+generated_credentials_file=""
 yes=0
 paper=0
 testnet=0
@@ -75,6 +82,42 @@ random_token() {
   python3 -c 'import secrets; print(secrets.token_hex(32))'
 }
 
+reject_secret_argument() {
+  die "INSTALL_SECRET_ARGUMENT_REJECTED: use --credentials-file or NFI_ENGINE_SETUP_* environment variables"
+}
+
+has_setup_credentials() {
+  [ -n "$api_key" ] \
+    || [ -n "$api_secret" ] \
+    || [ -n "$passphrase" ] \
+    || [ -n "$memo" ] \
+    || [ -n "$operator_id" ] \
+    || [ -n "$account_address" ] \
+    || [ -n "$api_wallet_signer" ]
+}
+
+write_setup_credentials_file() {
+  local target_file="$1"
+  {
+    printf 'api_key=%s\n' "$api_key"
+    printf 'api_secret=%s\n' "$api_secret"
+    printf 'passphrase=%s\n' "$passphrase"
+    printf 'memo=%s\n' "$memo"
+    printf 'operator_id=%s\n' "$operator_id"
+    printf 'account_address=%s\n' "$account_address"
+    printf 'api_wallet_signer=%s\n' "$api_wallet_signer"
+  } > "$target_file"
+  chmod 600 "$target_file"
+}
+
+cleanup_setup_credentials_file() {
+  if [ -n "$generated_credentials_file" ]; then
+    rm -f "$generated_credentials_file"
+  fi
+}
+
+trap cleanup_setup_credentials_file EXIT
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --yes)
@@ -126,11 +169,28 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     --api-key)
-      api_key="${2:?INSTALL_MISSING_VALUE: --api-key}"
-      shift 2
+      reject_secret_argument
       ;;
     --api-secret)
-      api_secret="${2:?INSTALL_MISSING_VALUE: --api-secret}"
+      reject_secret_argument
+      ;;
+    --passphrase)
+      reject_secret_argument
+      ;;
+    --memo)
+      reject_secret_argument
+      ;;
+    --operator-id)
+      reject_secret_argument
+      ;;
+    --account-address)
+      reject_secret_argument
+      ;;
+    --api-wallet-signer)
+      reject_secret_argument
+      ;;
+    --credentials-file)
+      credentials_file="${2:?INSTALL_MISSING_VALUE: --credentials-file}"
       shift 2
       ;;
     *)
@@ -159,6 +219,8 @@ token="$(random_token)"
 umask 077
 {
   printf 'NFI_ENGINE_API_TOKEN=%s\n' "$token"
+  printf 'NFI_ENGINE_OPERATOR_USERNAME=admin\n'
+  printf 'NFI_ENGINE_OPERATOR_PASSWORD=%s\n' "$token"
   printf 'NFI_ENGINE__ENGINE__ENVIRONMENT=local\n'
   printf 'NFI_ENGINE__LOGGING__LEVEL=INFO\n'
 } > "$env_file"
@@ -185,11 +247,16 @@ setup_args=(
   --non-interactive
   --force
 )
-if [ -n "$api_key" ]; then
-  setup_args+=(--api-key "$api_key")
+if [ -n "$credentials_file" ] && has_setup_credentials; then
+  die "INSTALL_CREDENTIALS_CONFLICT: use either --credentials-file or NFI_ENGINE_SETUP_* environment variables"
 fi
-if [ -n "$api_secret" ]; then
-  setup_args+=(--api-secret "$api_secret")
+if has_setup_credentials; then
+  generated_credentials_file="$(mktemp "${runtime_dir%/}/setup-credentials.XXXXXX")"
+  write_setup_credentials_file "$generated_credentials_file"
+  credentials_file="$generated_credentials_file"
+fi
+if [ -n "$credentials_file" ]; then
+  setup_args+=(--credentials-file "$credentials_file")
 fi
 if [ "$confirm_live" -eq 1 ]; then
   setup_args+=(--confirm-live)

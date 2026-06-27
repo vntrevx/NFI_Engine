@@ -15,9 +15,22 @@ def test_support_bundle_zip_redacts_secret_values_embedded_in_logs() -> None:
     # Given: runtime settings and a log entry that accidentally carries secret values.
     settings = RuntimeSettings(
         exchange=ExchangeSettings.model_validate(
-            {"api_key": "fixture-api-key", "api_secret": "fixture-api-secret"},
+            {
+                "api_key": "fixture-api-key",
+                "api_secret": "fixture-api-secret",
+                "passphrase": "fixture-passphrase",
+                "memo": "fixture-memo",
+                "operator_id": "fixture-operator",
+                "account_address": "fixture-account",
+                "api_wallet_signer": "fixture-signer",
+            },
         ),
-        api=ApiSettings.model_validate({"auth_token": "fixture-api-token"}),
+        api=ApiSettings.model_validate(
+            {
+                "auth_token": "fixture-api-token",
+                "operator_password": "fixture-operator-password",
+            },
+        ),
     )
     logs = (
         LogEntryResponse(
@@ -28,8 +41,8 @@ def test_support_bundle_zip_redacts_secret_values_embedded_in_logs() -> None:
             correlation_id="fixture-correlation",
             command="nfi-engine --token fixture-api-token",
             route="/api/v1/probe/fixture-api-key",
-            safe_summary="fixture-api-key and fixture-api-secret in summary",
-            report_hint="fixture-api-token in hint",
+            safe_summary="fixture-passphrase and fixture-signer in summary",
+            report_hint="fixture-api-token and fixture-operator-password in hint",
         ),
     )
 
@@ -42,4 +55,10 @@ def test_support_bundle_zip_redacts_secret_values_embedded_in_logs() -> None:
     assert REDACTED_TEXT in merged
     assert "fixture-api-key" not in merged
     assert "fixture-api-secret" not in merged
+    assert "fixture-passphrase" not in merged
+    assert "fixture-memo" not in merged
+    assert "fixture-operator" not in merged
+    assert "fixture-account" not in merged
+    assert "fixture-signer" not in merged
     assert "fixture-api-token" not in merged
+    assert "fixture-operator-password" not in merged

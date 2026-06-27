@@ -6,6 +6,7 @@ from html import escape
 from nfi_engine.api.models import LogEntryResponse
 from nfi_engine.config import Locale, LogLevel, RuntimeSettings
 from nfi_engine.dashboard import DashboardAction
+from nfi_engine.exchange.credential_requirements import missing_runtime_credential_fields
 from nfi_engine.exchange.discovery import build_exchange_capability_report
 from nfi_engine.exchange.errors import ExchangeError
 from nfi_engine.exchange.permissions import audit_exchange_api_permissions
@@ -129,12 +130,7 @@ def _item(test_id: str, label: str, value: str) -> str:
 
 
 def _configured(settings: RuntimeSettings, *, locale: Locale) -> str:
-    profile = _capability_profile_fields(settings)
-    needs_key = "api_key" in profile or "key" in profile
-    needs_secret = "api_secret" in profile or "secret" in profile
-    key_ready = settings.exchange.api_key is not None
-    secret_ready = settings.exchange.api_secret is not None
-    if (not needs_key or key_ready) and (not needs_secret or secret_ready):
+    if not missing_runtime_credential_fields(settings):
         return localize(locale, MessageKey.HOME_COCKPIT_CREDENTIALS_READY)
     return localize(locale, MessageKey.HOME_COCKPIT_CREDENTIALS_MISSING)
 
@@ -162,17 +158,6 @@ def _capability_level(settings: RuntimeSettings) -> str:
     except ExchangeError:
         return "generic-unverified"
     return report.profile.support_level.value
-
-
-def _capability_profile_fields(settings: RuntimeSettings) -> tuple[str, ...]:
-    try:
-        report = build_exchange_capability_report(
-            exchange_id=settings.exchange.name,
-            trading_mode=settings.exchange.trading_mode,
-        )
-    except ExchangeError:
-        return ("api_key", "api_secret")
-    return report.profile.credential_fields
 
 
 def _permission_audit(settings: RuntimeSettings) -> str:

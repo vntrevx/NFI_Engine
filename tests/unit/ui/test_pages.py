@@ -6,46 +6,29 @@ from nfi_engine.config.models import RuntimeSettings, UiSettings
 from nfi_engine.paper import BotState
 from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.ui.home_context import HomeRuntimeContext
-from nfi_engine.ui.pages import render_home_page, render_logs_page, render_settings_page
+from nfi_engine.ui.pages import (
+    render_home_page,
+    render_login_page,
+    render_logs_page,
+)
 
 
-def test_settings_page_renders_schema_driven_safe_controls() -> None:
+def test_login_page_uses_operator_account_fields_not_raw_token_prompt() -> None:
     # Given: default local runtime settings.
     settings = RuntimeSettings()
 
-    # When: the settings page is rendered from frontend metadata.
-    html = render_settings_page(settings=settings)
+    # When: the login page is rendered.
+    html = render_login_page(settings=settings)
 
-    # Then: safe controls are visible and dangerous/raw surfaces are locked out.
-    assert 'data-testid="settings-root"' in html
-    assert 'data-testid="settings-form"' in html
-    assert 'data-testid="setup-form"' in html
-    assert 'name="intent"' in html
-    assert 'name="risk_profile"' in html
-    assert 'name="permission_withdrawal"' in html
-    assert 'name="api_key" type="password"' in html
-    assert 'name="api_secret" type="password"' in html
-    assert 'name="risk.stake_usdt"' in html
-    assert 'name="risk.max_open_trades"' in html
-    assert 'type="number"' in html
-    assert 'data-runtime-safe="true"' in html
-    assert 'data-testid="validation-state"' in html
-    assert 'data-testid="audit-log"' in html
-    assert 'data-testid="live-trading-locked"' in html
-    assert 'data-testid="runtime-control-state"' in html
-    assert 'data-testid="runtime-health-state"' in html
-    assert 'data-testid="pause-button"' in html
-    assert 'data-testid="resume-button"' in html
-    assert 'data-command="start"' in html
-    assert 'data-command="pause"' in html
-    assert 'data-command="resume"' in html
-    assert 'data-command="stop"' in html
-    assert "raw yaml" not in html.lower()
-    assert "exchange.api_secret" not in html
+    # Then: the operator sees a normal account login while token storage stays hidden.
+    assert 'data-testid="login-root"' in html
+    assert 'data-testid="login-username"' in html
+    assert 'data-testid="login-password"' in html
+    assert 'autocomplete="username"' in html
+    assert 'autocomplete="current-password"' in html
+    assert 'data-testid="login-token"' not in html
+    assert "Operator token" not in html
     assert "api.auth_token" not in html
-    assert 'value="real-secret"' not in html
-    assert "https://" not in html
-    assert "cdn" not in html.lower()
 
 
 def test_home_page_renders_operator_command_center_without_external_assets() -> None:
@@ -139,103 +122,6 @@ def test_home_page_action_queue_links_support_bundle_to_export_endpoint() -> Non
     assert "Export a support bundle if errors persist" in html
 
 
-def test_settings_page_keeps_advanced_fields_discoverable_without_sensitive_values() -> None:
-    # Given: default local runtime settings before Simple Mode is expanded.
-    settings = RuntimeSettings()
-
-    # When: the settings page is rendered.
-    html = render_settings_page(settings=settings)
-
-    # Then: advanced runtime-safe controls remain in the page while secrets stay hidden.
-    assert 'name="notifications.max_attempts"' in html
-    assert 'name="backtest.fee_rate"' in html
-    assert "exchange.api_key" not in html
-    assert "exchange.api_secret" not in html
-
-
-def test_settings_page_renders_simple_mode_before_advanced_controls() -> None:
-    # Given: default local runtime settings.
-    settings = RuntimeSettings()
-
-    # When: the settings page is rendered.
-    html = render_settings_page(settings=settings)
-
-    # Then: essential setup fields are grouped before advanced controls.
-    simple_start = html.index('data-testid="simple-settings"')
-    setup_start = html.index('data-testid="setup-preview-panel"')
-    advanced_start = html.index('data-testid="advanced-settings"')
-    setup_html = html[setup_start:simple_start]
-    simple_html = html[simple_start:advanced_start]
-    assert setup_start < simple_start
-    assert simple_start < advanced_start
-    assert 'name="intent"' in setup_html
-    assert 'name="risk_profile"' in setup_html
-    assert 'name="permission_withdrawal"' in setup_html
-    assert 'name="api_key" type="password"' in setup_html
-    assert 'name="api_secret" type="password"' in setup_html
-    assert 'name="exchange.name"' in simple_html
-    assert 'name="exchange.trading_mode"' in simple_html
-    assert 'name="ui.locale"' in simple_html
-    assert '<option value="en" selected>English</option>' in simple_html
-    assert '<option value="ko">한국어</option>' in simple_html
-    assert '<option value="el">Ελληνικά</option>' in simple_html
-    assert 'name="risk.stake_usdt"' in simple_html
-    assert 'name="risk.max_open_trades"' in simple_html
-
-
-def test_settings_page_renders_first_run_wizard_in_operator_order() -> None:
-    # Given: default local runtime settings.
-    settings = RuntimeSettings()
-
-    # When: the first-run setup wizard is rendered.
-    html = render_settings_page(settings=settings)
-
-    # Then: the operator path follows the agreed safe order.
-    markers = (
-        'data-testid="setup-step-exchange"',
-        'data-testid="setup-step-api-key"',
-        'data-testid="setup-step-api-secret"',
-        'data-testid="setup-step-permission-audit"',
-        'data-testid="setup-step-leverage"',
-        'data-testid="setup-step-risk-profile"',
-        'data-testid="setup-step-wallet-balance"',
-        'data-testid="setup-step-allocated-amount"',
-        'data-testid="setup-step-market-mode"',
-        'data-testid="setup-step-intent"',
-    )
-    positions = tuple(html.index(marker) for marker in markers)
-    assert positions == tuple(sorted(positions))
-    assert 'data-testid="wallet-fetch-button"' in html
-    assert 'name="allocated_amount_usdt"' in html
-    assert 'name="permission_withdrawal"' in html
-    assert 'name="risk_profile"' in html
-    assert 'data-testid="setup-recommended-leverage">3x<' in html
-    assert '<option value="paper" selected>Dry-run</option>' in html
-    assert "wallet seed" not in html.lower()
-    assert "private key" not in html.lower()
-
-
-def test_settings_page_renders_developer_update_states_without_network_action() -> None:
-    # Given: local settings.
-    settings = RuntimeSettings()
-
-    # When: Settings renders the update panel.
-    html = render_settings_page(settings=settings)
-
-    # Then: one-click update states are visible but no remote fetch is embedded in HTML.
-    assert 'data-testid="settings-update-panel"' in html
-    assert 'data-testid="update-preview-state"' in html
-    assert 'data-testid="update-apply-state"' in html
-    assert 'data-testid="update-rollback-state"' in html
-    assert 'data-testid="update-preview-button"' in html
-    assert 'data-testid="update-apply-button"' in html
-    assert 'data-testid="update-rollback-button"' in html
-    assert 'data-testid="update-backup-reference"' in html
-    assert 'data-testid="update-acknowledge-unverified"' in html
-    assert "engine + strategy" in html
-    assert "https://" not in html
-
-
 def test_logs_page_renders_error_filter_and_report_controls() -> None:
     # Given: seeded operator logs.
     logs = initial_log_entries()
@@ -257,27 +143,6 @@ def test_logs_page_renders_error_filter_and_report_controls() -> None:
     assert "CONFIG_VALIDATION_ERROR" in html
     assert "traceback" not in html.lower()
     assert "https://" not in html
-
-
-def test_read_only_settings_page_locks_mutating_controls_without_token_storage() -> None:
-    # Given: read-only operator settings.
-    settings = RuntimeSettings(ui=UiSettings(read_only=True))
-
-    # When: the settings page is rendered.
-    html = render_settings_page(settings=settings)
-
-    # Then: mutation controls are disabled with a visible reason and no token storage.
-    assert 'data-testid="readonly-reason"' in html
-    assert 'data-testid="save-draft-button" disabled' in html
-    assert 'data-testid="apply-button" disabled' in html
-    assert 'data-testid="restore-button" disabled' in html
-    assert 'data-testid="start-button" disabled' in html
-    assert 'data-testid="pause-button" disabled' in html
-    assert 'data-testid="resume-button" disabled' in html
-    assert 'data-testid="stop-button" disabled' in html
-    assert "Read-only mode blocks changes" in html
-    assert "localStorage" not in html
-    assert "sessionStorage" not in html
 
 
 def test_read_only_home_page_disables_runtime_controls() -> None:

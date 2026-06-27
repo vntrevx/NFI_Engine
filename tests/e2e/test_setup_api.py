@@ -81,6 +81,35 @@ async def test_setup_preview_renders_permission_audit_and_risk_profile() -> None
 
 
 @pytest.mark.anyio
+async def test_setup_preview_accepts_and_redacts_exchange_specific_credentials() -> None:
+    # Given: a Bitget setup request uses the official passphrase credential.
+    async with _client(create_app(settings=RuntimeSettings())) as client:
+        # When: the API previews the generated runtime config.
+        response = await client.post(
+            "/api/v1/setup/preview",
+            json={
+                "exchange": "bitget",
+                "trading_mode": "futures",
+                "intent": "testnet",
+                "api_key": "bitget-api-key",
+                "api_secret": "bitget-api-secret",
+                "passphrase": "bitget-passphrase",
+                "allocated_amount_usdt": "42.5",
+            },
+        )
+
+    # Then: the passphrase is accepted for validation and redacted from the preview.
+    payload = SetupPreviewResponse.model_validate_json(response.content)
+    assert response.status_code == 200
+    assert payload.valid is True
+    assert payload.redacted_config is not None
+    assert payload.redacted_config.exchange.passphrase == REDACTED
+    assert f"passphrase: '{REDACTED}'" in payload.config_preview
+    assert "bitget-passphrase" not in payload.config_preview
+    assert "bitget-api-secret" not in payload.config_preview
+
+
+@pytest.mark.anyio
 async def test_setup_preview_blocks_live_mode_without_confirmation() -> None:
     # Given: a live setup request without explicit confirmation.
     async with _client(create_app(settings=RuntimeSettings())) as client:

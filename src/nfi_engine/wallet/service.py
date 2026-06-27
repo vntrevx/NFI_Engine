@@ -12,6 +12,7 @@ from nfi_engine.config import RuntimeSettings
 from nfi_engine.domain import AccountSnapshot, DomainError, Price, TradingMode, TradingPair
 from nfi_engine.exchange import get_exchange_profile
 from nfi_engine.exchange.binance import BinanceFuturesBalanceAdapter
+from nfi_engine.exchange.credential_requirements import missing_runtime_credential_fields
 from nfi_engine.exchange.errors import ExchangeError
 from nfi_engine.exchange.models import Tick
 from nfi_engine.exchange.simulator import DeterministicExchangeSimulator
@@ -93,12 +94,16 @@ def _blocked_diagnostic(settings: RuntimeSettings) -> WalletBalanceSnapshot | No
             next_action="Disable withdrawal permission before any live-intent wallet check.",
             message="Exchange API permissions are not safe for live-intent operation.",
         )
-    if _requires_credentials(settings) and _missing_credentials(settings):
+    missing_credentials = _missing_credentials(settings)
+    if _requires_credentials(settings) and missing_credentials:
         return WalletBalanceSnapshot.diagnostic(
             settings=settings,
             status=WalletBalanceStatus.BLOCKED,
             code=WalletBalanceCode.MISSING_CREDENTIALS,
-            next_action="Add read-only exchange API key and secret in Settings setup.",
+            next_action=(
+                "Add read-only exchange credentials in Settings setup: "
+                f"{', '.join(missing_credentials)}."
+            ),
             message="Wallet balance fetch needs exchange credentials.",
         )
     return None
@@ -171,5 +176,5 @@ def _requires_credentials(settings: RuntimeSettings) -> bool:
     return bool(profile.credential_fields)
 
 
-def _missing_credentials(settings: RuntimeSettings) -> bool:
-    return settings.exchange.api_key is None or settings.exchange.api_secret is None
+def _missing_credentials(settings: RuntimeSettings) -> tuple[str, ...]:
+    return missing_runtime_credential_fields(settings)

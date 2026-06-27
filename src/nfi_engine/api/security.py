@@ -15,6 +15,7 @@ from nfi_engine.api.auth import (
     OperatorRole,
 )
 from nfi_engine.api.errors import ApiErrorCode
+from nfi_engine.api.models import SessionLoginRequest
 from nfi_engine.api.security_store import SecuritySession, SecuritySessionStore
 from nfi_engine.api.settings import LOCAL_ENVIRONMENTS
 from nfi_engine.config import RuntimeSettings
@@ -45,8 +46,11 @@ class SecurityContext:
             _settings_provider=settings_provider,
             authenticator=OperatorAuthenticator(
                 token=settings.api.auth_token,
+                username=settings.api.operator_username,
+                password=settings.api.operator_password,
                 anonymous_allowed=(
                     settings.api.auth_token is None
+                    and settings.api.operator_password is None
                     and settings.engine.environment in LOCAL_ENVIRONMENTS
                 ),
             ),
@@ -66,12 +70,15 @@ class SecurityContext:
     def create_login_session(
         self,
         credentials: HTTPAuthorizationCredentials | None,
+        login: SessionLoginRequest | None,
     ) -> SecuritySession:
-        if not self.authenticator.accepts(_credential_token(credentials)):
+        bearer_accepted = self.authenticator.accepts(_credential_token(credentials))
+        login_accepted = login is not None and self.authenticator.accepts_login(login)
+        if not bearer_accepted and not login_accepted:
             _raise_api_error(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 code=ApiErrorCode.API_AUTH_REQUIRED,
-                message="bearer token required",
+                message="operator login required",
             )
         return self.store.create(
             role=self.operator_role,

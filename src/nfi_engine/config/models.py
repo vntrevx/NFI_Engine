@@ -28,6 +28,11 @@ class ExchangeSettings(StrictConfigModel):
     testnet: bool = True
     api_key: str | None = None
     api_secret: str | None = None
+    passphrase: str | None = None
+    memo: str | None = None
+    operator_id: str | None = None
+    account_address: str | None = None
+    api_wallet_signer: str | None = None
     permission_read: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
     permission_trade: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
     permission_futures: ExchangeApiPermissionState = ExchangeApiPermissionState.UNKNOWN
@@ -78,6 +83,8 @@ class ApiSettings(StrictConfigModel):
     host: str = "127.0.0.1"
     port: int = 18080
     auth_token: str | None = None
+    operator_username: str = "admin"
+    operator_password: str | None = None
     csrf_enabled: bool = True
     session_ttl_seconds: int = 1800
 

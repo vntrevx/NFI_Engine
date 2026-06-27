@@ -56,6 +56,34 @@ async def test_wallet_balance_blocks_non_simulator_without_credentials() -> None
     assert balance.equity is None
     assert balance.available is None
     assert "secret" not in balance.message.lower()
+    assert "api_key" in balance.next_action
+    assert "api_secret" in balance.next_action
+
+
+async def test_wallet_balance_names_exchange_specific_missing_credentials() -> None:
+    # Given: Bitget has key and secret configured, but its official passphrase is missing.
+    settings = RuntimeSettings.model_validate(
+        {
+            "exchange": {
+                "name": "bitget",
+                "testnet": True,
+                "api_key": "redacted-test-key",
+                "api_secret": "redacted-test-secret",
+            },
+        },
+    )
+
+    # When: the operator asks for wallet balance.
+    balance = await fetch_wallet_balance(settings=settings)
+
+    # Then: the blocker names the exchange-specific missing field without echoing secrets.
+    assert balance.status is WalletBalanceStatus.BLOCKED
+    assert balance.code is WalletBalanceCode.MISSING_CREDENTIALS
+    assert "passphrase" in balance.next_action
+    assert "api_key" not in balance.next_action
+    assert "api_secret" not in balance.next_action
+    assert "redacted-test-key" not in balance.next_action
+    assert "redacted-test-secret" not in balance.next_action
 
 
 async def test_wallet_balance_blocks_live_intent_with_withdrawal_permission() -> None:

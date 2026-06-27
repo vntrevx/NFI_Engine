@@ -102,6 +102,53 @@ def test_live_trading_without_exchange_keys_is_rejected_when_confirmed(tmp_path:
     assert exc_info.value.code is ConfigErrorCode.MISSING_EXCHANGE_KEY
 
 
+def test_live_trading_requires_exchange_specific_credentials(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        (
+            "engine:",
+            "  live_trading: true",
+            "  live_trading_confirmed: true",
+            "exchange:",
+            "  name: bitget",
+            "  trading_mode: futures",
+            "  margin_mode: isolated",
+            "  testnet: true",
+            "  api_key: key",
+            "  api_secret: secret",
+        ),
+    )
+
+    with pytest.raises(ConfigLoadError) as exc_info:
+        load_runtime_settings(config_path)
+
+    assert exc_info.value.code is ConfigErrorCode.MISSING_EXCHANGE_KEY
+    assert "passphrase" in exc_info.value.message
+
+
+def test_live_trading_accepts_exchange_specific_credentials(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        (
+            "engine:",
+            "  live_trading: true",
+            "  live_trading_confirmed: true",
+            "exchange:",
+            "  name: bitget",
+            "  trading_mode: futures",
+            "  margin_mode: isolated",
+            "  testnet: true",
+            "  api_key: key",
+            "  api_secret: secret",
+            "  passphrase: phrase",
+        ),
+    )
+
+    settings = load_runtime_settings(config_path)
+
+    assert settings.exchange.passphrase == "phrase"  # noqa: S105 - test-only placeholder.
+
+
 def test_futures_config_requires_margin_mode(tmp_path: Path) -> None:
     # Given
     config_path = _write_config(

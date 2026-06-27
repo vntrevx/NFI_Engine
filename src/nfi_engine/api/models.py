@@ -97,13 +97,24 @@ class ExchangeConfigResponse(StrictApiModel):
     testnet: bool
     api_key: str
     api_secret: str
+    passphrase: str
+    memo: str
+    operator_id: str
+    account_address: str
+    api_wallet_signer: str
 
 
 class ApiConfigResponse(StrictApiModel):
     host: str
     port: int
     auth_token: str
+    operator_username: str
     csrf_enabled: bool
+
+
+class SessionLoginRequest(StrictApiModel):
+    username: str
+    password: str
 
 
 class RiskConfigResponse(StrictApiModel):
@@ -232,6 +243,11 @@ def config_current_response(settings: RuntimeSettings) -> ConfigCurrentResponse:
             testnet=settings.exchange.testnet,
             api_key=REDACTED,
             api_secret=REDACTED,
+            passphrase=REDACTED,
+            memo=REDACTED,
+            operator_id=REDACTED,
+            account_address=REDACTED,
+            api_wallet_signer=REDACTED,
         ),
         risk=RiskConfigResponse(
             stake_usdt=settings.risk.stake_usdt,
@@ -245,6 +261,7 @@ def config_current_response(settings: RuntimeSettings) -> ConfigCurrentResponse:
             host=settings.api.host,
             port=settings.api.port,
             auth_token=REDACTED,
+            operator_username=settings.api.operator_username,
             csrf_enabled=settings.api.csrf_enabled,
         ),
     )

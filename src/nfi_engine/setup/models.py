@@ -37,6 +37,11 @@ class SetupRequest(StrictConfigModel):
     intent: SetupIntent = SetupIntent.PAPER
     api_key: str = ""
     api_secret: str = ""
+    passphrase: str = ""
+    memo: str = ""
+    operator_id: str = ""
+    account_address: str = ""
+    api_wallet_signer: str = ""
     risk_profile: RiskProfileName = RiskProfileName.BALANCED
     risk_preset: RiskPreset | None = None
     expert_risk_confirmed: bool = False
@@ -50,7 +55,16 @@ class SetupRequest(StrictConfigModel):
     live_trading_confirmed: bool = False
     locale: Locale = Locale.EN
 
-    @field_validator("exchange", "api_key", "api_secret")
+    @field_validator(
+        "exchange",
+        "api_key",
+        "api_secret",
+        "passphrase",
+        "memo",
+        "operator_id",
+        "account_address",
+        "api_wallet_signer",
+    )
     @classmethod
     def _strip_safe_text(cls, value: str) -> str:
         normalized = value.strip()
