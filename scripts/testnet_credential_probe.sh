@@ -2,7 +2,11 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-credential_file="${NFI_ENGINE_TESTNET_CREDENTIALS_FILE:-.runtime/secrets/exchange-wallet.env}"
+credentials_dir="${NFI_ENGINE_TESTNET_CREDENTIALS_DIR:-.runtime/secrets}"
+credential_file="${NFI_ENGINE_TESTNET_CREDENTIALS_FILE:-}"
+legacy_credential_file=".runtime/secrets/exchange-wallet.env"
+credential_file_override=false
+init_template=false
 output_path=""
 runtime_dir="${NFI_ENGINE_TESTNET_PROBE_RUNTIME_DIR:-.runtime/testnet-credential-probe}"
 priority_modes="binance:futures bybit:futures okx:futures bitget:futures"
@@ -14,11 +18,17 @@ die() {
 
 print_help() {
   cat <<'HELP'
-Usage: bash scripts/testnet_credential_probe.sh [--credentials-file PATH] [--output PATH]
+Usage: bash scripts/testnet_credential_probe.sh [--credentials-dir DIR] [--credentials-file PATH] [--init-template] [--output PATH]
 
 Runs a secret-safe priority-exchange testnet credential probe. It never prints
 credential values. If no owner-only credential file with recognized fields is
 available, it reports blocked-no-key and only runs report-only runtime checks.
+
+Default per-exchange files:
+  .runtime/secrets/testnet-binance.env
+  .runtime/secrets/testnet-bybit.env
+  .runtime/secrets/testnet-okx.env
+  .runtime/secrets/testnet-bitget.env
 HELP
 }
 
@@ -30,7 +40,16 @@ while [ "$#" -gt 0 ]; do
       ;;
     --credentials-file)
       credential_file="${2:?TESTNET_PROBE_MISSING_VALUE: --credentials-file}"
+      credential_file_override=true
       shift 2
+      ;;
+    --credentials-dir)
+      credentials_dir="${2:?TESTNET_PROBE_MISSING_VALUE: --credentials-dir}"
+      shift 2
+      ;;
+    --init-template)
+      init_template=true
+      shift
       ;;
     --output)
       output_path="${2:?TESTNET_PROBE_MISSING_VALUE: --output}"
@@ -50,29 +69,106 @@ fi
 cd "$repo_root"
 mkdir -p "$runtime_dir"
 
-field_names() {
-  if [ ! -f "$credential_file" ]; then
+template_fields() {
+  case "$1" in
+    okx | bitget)
+      printf '%s\n' api_key api_secret passphrase
+      ;;
+    *)
+      printf '%s\n' api_key api_secret
+      ;;
+  esac
+}
+
+write_template() {
+  mkdir -p "$credentials_dir"
+  chmod 700 "$credentials_dir"
+  for mode in $priority_modes; do
+    exchange="${mode%%:*}"
+    template_file="$credentials_dir/testnet-$exchange.env"
+    if [ -f "$template_file" ]; then
+      chmod 600 "$template_file"
+      printf 'template=preserved exchange=%s file=%s mode=600\n' "$exchange" "$template_file"
+      continue
+    fi
+    umask 077
+    template_fields "$exchange" | sed 's/$/=/' > "$template_file"
+    chmod 600 "$template_file"
+    printf 'template=created exchange=%s file=%s mode=600\n' "$exchange" "$template_file"
+  done
+}
+
+credential_file_for_exchange() {
+  exchange="$1"
+  if [ "$credential_file_override" = true ]; then
+    printf '%s\n' "$credential_file"
     return
   fi
-  sed -n 's/^[[:space:]]*\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*=.*/\1/p' "$credential_file" \
+  exchange_file="$credentials_dir/testnet-$exchange.env"
+  if [ -f "$exchange_file" ]; then
+    printf '%s\n' "$exchange_file"
+    return
+  fi
+  if [ -n "$credential_file" ]; then
+    printf '%s\n' "$credential_file"
+    return
+  fi
+  printf '%s\n' "$legacy_credential_file"
+}
+
+field_names() {
+  file_path="$1"
+  if [ ! -f "$file_path" ]; then
+    return
+  fi
+  sed -n 's/^[[:space:]]*\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*=.*/\1/p' "$file_path" \
     | sort \
     | paste -sd ','
 }
 
-credential_status="present"
-credential_fields="$(field_names)"
-if [ ! -f "$credential_file" ]; then
-  credential_status="missing"
-elif [ "$(stat -c '%a' "$credential_file")" != "600" ]; then
-  credential_status="unsafe-mode"
-elif [ -z "$credential_fields" ]; then
-  credential_status="blocked-no-key"
+non_empty_field_names() {
+  file_path="$1"
+  if [ ! -f "$file_path" ]; then
+    return
+  fi
+  awk -F= '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      key=$1
+      value=$0
+      sub(/^[^=]*=/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      if (key != "" && value != "") print key
+    }
+  ' "$file_path" | sort | paste -sd ','
+}
+
+credential_status_for_file() {
+  file_path="$1"
+  if [ ! -f "$file_path" ]; then
+    printf 'missing\n'
+    return
+  fi
+  if [ "$(stat -c '%a' "$file_path")" != "600" ]; then
+    printf 'unsafe-mode\n'
+    return
+  fi
+  if [ -z "$(non_empty_field_names "$file_path")" ]; then
+    printf 'blocked-no-key\n'
+    return
+  fi
+  printf 'present\n'
+}
+
+if [ "$init_template" = true ]; then
+  write_template
+  exit 0
 fi
 
 printf 'probe=testnet-credential\n'
-printf 'credential_file=%s\n' "$credential_file"
-printf 'credential_status=%s\n' "$credential_status"
-printf 'credential_fields=%s\n' "${credential_fields:-none}"
+printf 'credentials_dir=%s\n' "$credentials_dir"
 printf 'secrets=redacted\n'
 
 tmp_dir="$(mktemp -d "${runtime_dir%/}/probe.XXXXXX")"
@@ -84,7 +180,15 @@ trap cleanup EXIT
 for mode in $priority_modes; do
   exchange="${mode%%:*}"
   trading_mode="${mode##*:}"
+  probe_credential_file="$(credential_file_for_exchange "$exchange")"
+  credential_status="$(credential_status_for_file "$probe_credential_file")"
+  credential_fields="$(field_names "$probe_credential_file")"
+  credential_non_empty_fields="$(non_empty_field_names "$probe_credential_file")"
   printf 'exchange=%s trading_mode=%s\n' "$exchange" "$trading_mode"
+  printf 'credential_file=%s\n' "$probe_credential_file"
+  printf 'credential_status=%s\n' "$credential_status"
+  printf 'credential_fields=%s\n' "${credential_fields:-none}"
+  printf 'credential_non_empty_fields=%s\n' "${credential_non_empty_fields:-none}"
   if [ "$credential_status" != "present" ]; then
     uv run nfi-engine exchange runtime-check \
       --exchange "$exchange" \
@@ -100,7 +204,7 @@ for mode in $priority_modes; do
     --exchange "$exchange" \
     --trading-mode "$trading_mode" \
     --testnet \
-    --credentials-file "$credential_file" \
+    --credentials-file "$probe_credential_file" \
     --non-interactive \
     --force \
     | sed 's/^/setup\t/'; then
@@ -111,8 +215,19 @@ for mode in $priority_modes; do
     --config "$config_path" \
     --format text \
     | sed 's/^/runtime_check\t/'
-  uv run nfi-engine exchange testnet-pilot \
-    --config "$config_path" \
-    | sed 's/^/testnet_pilot\t/'
-  printf 'real_testnet_action=report-only-no-order\n'
+  pilot_output="$tmp_dir/$exchange-$trading_mode-pilot.txt"
+  if ! uv run nfi-engine exchange testnet-pilot --config "$config_path" > "$pilot_output"; then
+    sed 's/^/testnet_pilot\t/' "$pilot_output"
+    printf 'real_testnet_action=blocked-pilot-command\n'
+    continue
+  fi
+  sed 's/^/testnet_pilot\t/' "$pilot_output"
+  if grep -q '^pilot_ready=true$' "$pilot_output"; then
+    uv run nfi-engine exchange testnet-execute \
+      --config "$config_path" \
+      | sed 's/^/testnet_execute\t/'
+    printf 'real_testnet_action=report-only-no-real-order\n'
+    continue
+  fi
+  printf 'real_testnet_action=blocked-pilot\n'
 done

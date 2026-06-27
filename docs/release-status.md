@@ -51,7 +51,9 @@ Final local gates under that root include:
   printed and no real exchange API call was attempted.
 - `scripts/testnet_credential_probe.sh`: repeatable secret-safe probe for
   Binance, Bybit, OKX, and Bitget testnet credential readiness. It reports
-  `blocked-no-key` when no owner-only credential source is present.
+  `blocked-no-key` when no owner-only credential source is present. It can
+  create empty owner-only per-exchange templates with `--init-template`; real
+  API values still must be supplied locally by the operator.
 - `nfi-engine exchange testnet-pilot --config ...`: executable testnet-only
   readiness report for profile, live lock, testnet scope, credentials,
   permission hardening, reconciliation, circuit breakers, X7 runtime,

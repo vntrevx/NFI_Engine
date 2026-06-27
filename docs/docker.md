@@ -79,6 +79,22 @@ The file accepts `api_key`, `api_secret`, `passphrase`, `memo`, `operator_id`,
 environment variables are also accepted and are converted to a temporary
 owner-only file before the setup CLI is invoked.
 
+For priority testnet exchange checks, create owner-only per-exchange templates
+and fill only testnet/sandbox keys:
+
+```bash
+bash scripts/testnet_credential_probe.sh --init-template
+$EDITOR .runtime/secrets/testnet-binance.env
+$EDITOR .runtime/secrets/testnet-bybit.env
+$EDITOR .runtime/secrets/testnet-okx.env
+$EDITOR .runtime/secrets/testnet-bitget.env
+bash scripts/testnet_credential_probe.sh
+```
+
+The probe reads `.runtime/secrets/testnet-<exchange>.env` first and falls back
+to `.runtime/secrets/exchange-wallet.env` for older local setups. Empty
+templates stay `blocked-no-key`; the script never prints credential values.
+
 ## Build
 
 ```bash
