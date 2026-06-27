@@ -135,8 +135,11 @@ async function switchLocale(page, locale, visibleText, countDocumentRequests = (
   const beforeDocuments = countDocumentRequests("/settings");
   await page.locator('[name="ui.locale"]').selectOption(locale);
   await page.locator('[data-testid="apply-button"]').click();
-  await page.waitForFunction((expected) => document.documentElement.lang === expected, locale);
-  await page.waitForFunction((text) => document.body.innerText.includes(text), visibleText);
+  await page.waitForFunction((expected) => document.documentElement?.lang === expected, locale);
+  await page.waitForFunction(
+    (text) => document.body?.innerText?.includes(text) === true,
+    visibleText,
+  );
   await page.waitForLoadState("networkidle");
   const afterDocuments = countDocumentRequests("/settings");
   return {
