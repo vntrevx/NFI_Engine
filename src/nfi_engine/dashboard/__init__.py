@@ -19,7 +19,11 @@ from nfi_engine.dashboard.store import (
     PersistenceDashboardReadStore,
     StaticDashboardReadStore,
 )
-from nfi_engine.dashboard.summary import DashboardOperatorSummary, summarize_dashboard_read_models
+from nfi_engine.dashboard.summary import (
+    DashboardOperatorSummary,
+    DashboardRiskPressure,
+    summarize_dashboard_read_models,
+)
 
 __all__ = [
     "DashboardAction",
@@ -34,6 +38,7 @@ __all__ = [
     "DashboardReadiness",
     "DashboardReadinessCheck",
     "DashboardRecentTrade",
+    "DashboardRiskPressure",
     "DashboardSnapshot",
     "PersistenceDashboardReadStore",
     "StaticDashboardReadStore",

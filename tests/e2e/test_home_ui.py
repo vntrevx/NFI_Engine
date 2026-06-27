@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from nfi_engine.api.app import create_app
 from nfi_engine.config.models import RuntimeSettings
 from nfi_engine.dashboard.models import (
+    DashboardEquityPoint,
     DashboardOpenPosition,
     DashboardReadModels,
     DashboardRecentTrade,
@@ -68,6 +69,13 @@ async def test_home_route_is_first_usable_operator_surface() -> None:
 async def test_home_route_renders_bounded_dashboard_read_model_summary() -> None:
     read_store = StaticDashboardReadStore(
         DashboardReadModels(
+            equity_points=(
+                DashboardEquityPoint(
+                    at=datetime(2026, 1, 1, tzinfo=UTC),
+                    equity=Decimal("1000.00"),
+                    available=Decimal("875.50"),
+                ),
+            ),
             open_positions=(
                 DashboardOpenPosition(
                     position_id="position-1",
@@ -104,6 +112,16 @@ async def test_home_route_renders_bounded_dashboard_read_model_summary() -> None
         in response.text
     )
     assert 'data-testid="runtime-control-state">stopped<' in response.text
+    assert 'data-testid="portfolio-summary"' in response.text
+    assert (
+        'data-testid="portfolio-equity"><span>Account equity</span><strong>1000.00 USDT</strong>'
+        in response.text
+    )
+    assert (
+        'data-testid="portfolio-exposure"><span>Gross exposure</span><strong>20.00 USDT</strong>'
+        in response.text
+    )
+    assert 'data-testid="portfolio-risk-pressure">Balanced</strong>' in response.text
     assert "profit-placeholder" not in response.text
 
 

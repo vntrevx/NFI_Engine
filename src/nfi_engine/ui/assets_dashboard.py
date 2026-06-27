@@ -40,9 +40,49 @@ DASHBOARD_STYLE: Final = """
   border-left-color: var(--warn);
   background: var(--warn-soft);
 }
+.portfolio-panel {
+  grid-column: 1 / -1;
+}
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.portfolio-cell {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-subtle);
+}
+.portfolio-cell span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.portfolio-cell strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.portfolio-pressure-idle { border-color: var(--line); }
+.portfolio-pressure-balanced {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.portfolio-pressure-elevated {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
 @media (max-width: 780px) {
   .chart-heading, .chart-footer { display: block; }
   .chart-heading span, .chart-footer .muted { display: block; margin-top: 8px; }
+  .portfolio-grid { grid-template-columns: 1fr; }
 }
 """
 

@@ -16,6 +16,7 @@ from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.ui.chart import render_dashboard_chart_panel
 from nfi_engine.ui.home_cockpit import render_home_cockpit
 from nfi_engine.ui.home_context import HomeRuntimeContext
+from nfi_engine.ui.home_portfolio import render_portfolio_summary
 from nfi_engine.ui.i18n import format_message, localize
 from nfi_engine.ui.i18n_keys import MessageKey
 from nfi_engine.ui.runtime_controls import render_runtime_controls
@@ -119,6 +120,7 @@ def render_home_body(
             )
         }\n"
         f"{render_x7_semantic_status(x7_status, locale=locale)}"
+        f"    {render_portfolio_summary(summary, locale=locale)}\n"
         f"    {_action_queue(actions, locale=locale)}\n"
         f"    {_setup_doctor(resolved_runtime.readiness, locale=locale)}\n"
         f"    {_safety_explainer(resolved_runtime.readiness, locale=locale)}\n"
