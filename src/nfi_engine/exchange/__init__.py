@@ -20,6 +20,11 @@ from nfi_engine.exchange.models import (
     Tick,
     Ticker,
 )
+from nfi_engine.exchange.official_requirement_models import ExchangeOfficialRequirement
+from nfi_engine.exchange.official_requirements import (
+    get_official_requirement,
+    list_official_requirements,
+)
 from nfi_engine.exchange.protocols import ExchangeProtocol
 from nfi_engine.exchange.ticks import load_tick_fixture
 
@@ -28,6 +33,7 @@ __all__ = [
     "ExchangeCapabilityReport",
     "ExchangeError",
     "ExchangeErrorCode",
+    "ExchangeOfficialRequirement",
     "ExchangeOrder",
     "ExchangeOrderRequest",
     "ExchangeProtocol",
@@ -39,6 +45,8 @@ __all__ = [
     "build_exchange_capability_document",
     "build_exchange_capability_report",
     "get_exchange_profile",
+    "get_official_requirement",
     "list_exchange_profiles",
+    "list_official_requirements",
     "load_tick_fixture",
 ]

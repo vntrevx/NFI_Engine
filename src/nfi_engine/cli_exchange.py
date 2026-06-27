@@ -15,6 +15,7 @@ from nfi_engine.cli_exchange_capabilities import (
     format_capability_profile,
 )
 from nfi_engine.cli_exchange_lifecycle import lifecycle_app
+from nfi_engine.cli_exchange_runtime import runtime_check
 from nfi_engine.config import ConfigLoadError, RuntimeSettings, load_runtime_settings
 from nfi_engine.domain import (
     DomainError,
@@ -47,6 +48,7 @@ exchange_app: Final[typer.Typer] = typer.Typer(
     help="Inspect exchange registry and simulator behavior."
 )
 exchange_app.add_typer(lifecycle_app, name="lifecycle")
+exchange_app.command(name="runtime-check")(runtime_check)
 DEFAULT_PRICE: Final = Decimal(100)
 DEFAULT_RECONCILE_FIXTURE: Final = Path("tests/fixtures/exchange/reconcile_match.json")
 

@@ -17,7 +17,7 @@ from nfi_engine.domain import AccountSnapshot, StakeAmount, TradingMode
 from nfi_engine.exchange.errors import ExchangeError, ExchangeErrorCode
 
 BINANCE_FAPI_BASE_URL: Final = "https://fapi.binance.com"
-BINANCE_FAPI_TESTNET_BASE_URL: Final = "https://testnet.binancefuture.com"
+BINANCE_FAPI_TESTNET_BASE_URL: Final = "https://demo-fapi.binance.com"
 BALANCE_PATH: Final = "/fapi/v3/balance"
 DEFAULT_RECV_WINDOW_MS: Final = 5000
 HTTP_CLIENT_ERROR_MIN: Final = 400

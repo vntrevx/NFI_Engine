@@ -21,6 +21,9 @@ class _ExchangeCapabilitiesCliPayload(BaseModel):
     live_trading_allowed: bool
     policy_block: str
     credential_fields: list[str]
+    official_docs_checked: bool
+    official_credential_fields: list[str]
+    official_secret_fields: list[str]
 
 
 def test_cli_help_lists_operator_commands() -> None:
@@ -190,16 +193,20 @@ def test_cli_exchange_capabilities_bybit_returns_verified_testnet_json() -> None
     assert payload.can_configure is True
     assert payload.live_trading_allowed is False
     assert payload.policy_block == "live trading is blocked in current milestone"
+    assert payload.official_docs_checked is True
+    assert payload.official_credential_fields == ["api_key", "api_secret"]
 
 
-def test_cli_exchange_capabilities_okx_remains_candidate_json() -> None:
+def test_cli_exchange_capabilities_okx_returns_verified_profile_json() -> None:
     payload = _exchange_capabilities_payload(exchange="okx", trading_mode="futures")
 
     assert payload.exchange_id == "okx"
     assert payload.trading_mode == "futures"
-    assert payload.support_level == "candidate"
+    assert payload.support_level == "verified"
     assert payload.can_configure is True
     assert payload.live_trading_allowed is False
+    assert payload.official_docs_checked is True
+    assert "passphrase" in payload.official_secret_fields
 
 
 def test_cli_exchange_capabilities_mexc_is_report_only_generic_unverified() -> None:
@@ -211,6 +218,8 @@ def test_cli_exchange_capabilities_mexc_is_report_only_generic_unverified() -> N
     assert payload.live_trading_allowed is False
     assert "evidence" in payload.policy_block.lower()
     assert payload.credential_fields == []
+    assert payload.official_docs_checked is False
+    assert payload.official_credential_fields == []
 
 
 def test_cli_exchange_capabilities_mexc_json_does_not_promote_to_config_execution(

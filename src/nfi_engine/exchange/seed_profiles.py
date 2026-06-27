@@ -11,7 +11,6 @@ from nfi_engine.exchange.profile_constants import (
     CHECKED_ON,
     DOC_EVIDENCE,
     ISOLATED_CROSS,
-    KEY_SECRET,
     MARKET_LIMIT,
     SIMULATOR_EVIDENCE,
 )
@@ -47,7 +46,7 @@ GENERIC_CCXT_PROFILE: Final = ExchangeCapabilityProfile(
     supports_sandbox=False,
     supports_trailing_stop=False,
     supports_data_only=True,
-    credential_fields=KEY_SECRET,
+    credential_fields=(),
     evidence=DOC_EVIDENCE,
     checked_on=CHECKED_ON,
 )

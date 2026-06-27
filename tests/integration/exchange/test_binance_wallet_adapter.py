@@ -89,7 +89,7 @@ def test_binance_futures_adapter_uses_testnet_base_url_from_settings() -> None:
     adapter = BinanceFuturesBalanceAdapter.from_settings(settings=settings)
 
     # Then: no wallet-balance call can default to the production futures REST URL.
-    assert adapter.base_url == "https://testnet.binancefuture.com"
+    assert adapter.base_url == "https://demo-fapi.binance.com"
 
 
 def test_binance_futures_adapter_defaults_to_testnet_base_url() -> None:
@@ -101,7 +101,7 @@ def test_binance_futures_adapter_defaults_to_testnet_base_url() -> None:
     )
 
     # Then: direct construction is still testnet-safe by default.
-    assert adapter.base_url == "https://testnet.binancefuture.com"
+    assert adapter.base_url == "https://demo-fapi.binance.com"
 
 
 async def test_binance_futures_adapter_rejects_missing_quote_asset() -> None:

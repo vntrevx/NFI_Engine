@@ -11,6 +11,10 @@ from nfi_engine.exchange.capability_models import (
     ExchangeSupportLevel,
 )
 from nfi_engine.exchange.errors import ExchangeError, ExchangeErrorCode
+from nfi_engine.exchange.official_requirements import (
+    build_official_requirement_payload,
+    official_credential_fields,
+)
 from nfi_engine.exchange.profile_constants import CHECKED_ON, DOC_EVIDENCE
 
 MAX_EXCHANGE_ID_LENGTH: Final = 64
@@ -49,6 +53,16 @@ class ExchangeCapabilityPayload(TypedDict):
     credential_fields: list[str]
     evidence: str
     checked_on: str
+    official_docs_checked: bool
+    official_doc_url: str
+    official_docs_checked_on: str
+    official_credential_fields: list[str]
+    official_secret_fields: list[str]
+    official_identifier_fields: list[str]
+    official_required_permissions: list[str]
+    official_account_notes: list[str]
+    official_testnet_notes: list[str]
+    official_order_notes: list[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,9 +100,10 @@ class ExchangeCapabilityReport:
             "supports_sandbox": self.profile.supports_sandbox,
             "supports_trailing_stop": self.profile.supports_trailing_stop,
             "supports_data_only": self.profile.supports_data_only,
-            "credential_fields": list(self.profile.credential_fields),
+            "credential_fields": list(_credential_fields(self.profile)),
             "evidence": self.profile.evidence,
             "checked_on": self.profile.checked_on.isoformat(),
+            **build_official_requirement_payload(self.profile.exchange_id),
         }
 
 
@@ -186,6 +201,13 @@ def _generic_unverified_profile(exchange_id: str) -> ExchangeCapabilityProfile:
         evidence=f"{DOC_EVIDENCE}#generic-unverified-path",
         checked_on=CHECKED_ON,
     )
+
+
+def _credential_fields(profile: ExchangeCapabilityProfile) -> tuple[str, ...]:
+    official_fields = official_credential_fields(profile.exchange_id)
+    if official_fields is None:
+        return profile.credential_fields
+    return official_fields
 
 
 def _can_configure_profile(

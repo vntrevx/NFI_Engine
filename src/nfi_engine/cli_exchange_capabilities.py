@@ -9,6 +9,7 @@ from nfi_engine.exchange import (
     ExchangeCapabilityProfile,
     ExchangeCapabilityReport,
     build_exchange_capability_report,
+    get_official_requirement,
 )
 
 
@@ -38,6 +39,7 @@ def build_exchange_capabilities_output(
 
 
 def _format_capability_document(report: ExchangeCapabilityReport) -> str:
+    payload = report.to_payload()
     return (
         f"exchange={report.profile.exchange_id}\n"
         f"requested_exchange={report.requested_exchange}\n"
@@ -48,9 +50,10 @@ def _format_capability_document(report: ExchangeCapabilityReport) -> str:
         f"can_configure={str(report.can_configure).lower()}\n"
         f"live_trading_allowed={str(report.live_trading_allowed).lower()}\n"
         f"policy_block={report.policy_block}\n"
-        f"credential_fields={','.join(report.profile.credential_fields)}\n"
+        f"credential_fields={','.join(payload['credential_fields'])}\n"
         f"evidence={report.profile.evidence}\n"
         f"checked_on={report.profile.checked_on.isoformat()}\n"
+        f"{_format_official_requirements(report.profile.exchange_id)}"
     )
 
 
@@ -67,3 +70,30 @@ def format_capability_profile(profile: ExchangeCapabilityProfile) -> str:
         f"supports_market_orders={str(profile.supports_market_orders).lower()}\n"
         "live_exchange=false\n"
     )
+
+
+def _format_official_requirements(exchange_id: str) -> str:
+    requirement = get_official_requirement(exchange_id)
+    if requirement is None:
+        return (
+            "official_docs_checked=false\n"
+            "official_doc_url=\n"
+            "official_docs_checked_on=\n"
+            "official_credential_fields=\n"
+            "official_required_permissions=\n"
+        )
+    return (
+        "official_docs_checked=true\n"
+        f"official_doc_url={requirement.official_doc_url}\n"
+        f"official_docs_checked_on={requirement.checked_on.isoformat()}\n"
+        f"official_credential_fields={','.join(requirement.credential_fields)}\n"
+        f"official_secret_fields={','.join(requirement.secret_fields)}\n"
+        f"official_identifier_fields={','.join(requirement.identifier_fields)}\n"
+        f"official_required_permissions={_joined(requirement.required_permissions)}\n"
+        f"official_testnet_notes={_joined(requirement.testnet_notes)}\n"
+        f"official_order_notes={_joined(requirement.order_notes)}\n"
+    )
+
+
+def _joined(items: tuple[str, ...]) -> str:
+    return " | ".join(items)
