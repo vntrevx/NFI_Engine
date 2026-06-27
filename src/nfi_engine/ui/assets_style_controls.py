@@ -1,0 +1,193 @@
+from __future__ import annotations
+
+from typing import Final
+
+CONTROL_STYLE: Final = """
+.metric, .cockpit-item, .update-state, .x7-status-item {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 10px;
+  background: var(--panel-subtle);
+  min-width: 0;
+}
+.metric {
+  background: linear-gradient(180deg, var(--panel), var(--panel-subtle));
+  border-color: var(--line-strong);
+}
+.metric span, .cockpit-item span, .update-state span, .x7-status-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.metric strong, .cockpit-item strong, .update-state strong, .x7-status-item strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.settings-stack { display: grid; gap: 14px; margin-top: 18px; }
+.settings-secondary-stack {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.settings-focus-panel {
+  border-color: var(--line-strong);
+  background: linear-gradient(180deg, var(--panel), var(--panel-subtle));
+}
+.settings-drawer {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  min-width: 0;
+  overflow: clip;
+}
+.settings-drawer[open] { border-color: var(--line-strong); }
+.settings-drawer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+.settings-drawer > summary::after {
+  content: "+";
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+}
+.settings-drawer[open] > summary {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-subtle);
+}
+.settings-drawer[open] > summary::after { content: "-"; }
+.settings-drawer-body { padding: 12px; }
+.settings-drawer-body > section {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.settings-drawer .settings-stack { margin-top: 0; }
+.settings-drawer .settings-group:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.settings-drawer .settings-simple-group > h2,
+.settings-drawer .settings-simple-group > .muted {
+  display: none;
+}
+.settings-drawer .field-grid { grid-template-columns: 1fr; }
+.settings-group { border-top: 1px solid var(--line); padding-top: 14px; }
+.settings-group summary { cursor: pointer; font-size: 15px; font-weight: 650; }
+.field-grid { display: grid; grid-template-columns: minmax(170px, .55fr) 1fr 120px; gap: 10px; }
+.field-row { display: contents; }
+label, .field-note, th { font-size: 13px; color: var(--muted); }
+input, select, button, .button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 7px 9px;
+  font: inherit;
+  transition: background .2s ease, border-color .2s ease, color .2s ease, transform .12s ease;
+}
+input[type="checkbox"] { width: 18px; min-height: 18px; align-self: center; }
+input:not([type="checkbox"]), select {
+  width: 100%;
+  min-width: 0;
+}
+button, .button {
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+button:hover, .button:hover { border-color: var(--line-strong); background: var(--panel-subtle); }
+button:active, .button:active { transform: translateY(1px); }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--panel);
+}
+button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+button:disabled, input:disabled, select:disabled {
+  opacity: .62;
+  cursor: not-allowed;
+  transform: none;
+}
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.setup-preview { margin-bottom: 18px; }
+.setup-wizard strong { align-self: center; }
+.setup-output { white-space: pre-wrap; overflow-wrap: anywhere; }
+.setup-permission-drawer, .setup-credential-drawer {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-subtle);
+  overflow: clip;
+}
+.setup-permission-drawer > summary, .setup-credential-drawer > summary {
+  min-height: 36px;
+  padding: 9px 10px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+.setup-permission-drawer[open] > summary,
+.setup-credential-drawer[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+.setup-credential-drawer .field-row {
+  display: grid;
+  grid-template-columns: minmax(170px, .55fr) 1fr 120px;
+  gap: 10px;
+  padding: 10px;
+}
+.setup-permission-drawer fieldset {
+  display: grid;
+  grid-template-columns: minmax(170px, .55fr) 1fr;
+  gap: 10px;
+  margin: 0;
+  border: 0;
+  padding: 10px;
+}
+.setup-permission-drawer legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.inline-state {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 7px 9px;
+  background: var(--panel-subtle);
+  color: var(--muted);
+}
+.state, .audit, .lock {
+  margin-top: 12px;
+  border-left: 3px solid var(--accent);
+  padding: 8px 10px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  min-height: 36px;
+}
+.lock { border-left-color: var(--warn); background: var(--warn-soft); }
+"""

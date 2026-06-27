@@ -68,6 +68,9 @@ def test_settings_operator_select_options_are_localized() -> None:
     assert '<option value="balanced" selected>균형</option>' in korean
     assert '<option value="futures">Συμβόλαια</option>' in greek
     assert '<option value="balanced" selected>Ισορροπημένο</option>' in greek
+    assert "Bybit - 검증됨 - 현물/선물" in korean
+    assert "Binance - 검증됨 - 현물/선물" in korean
+    assert "Bybit - επαληθευμένο - spot/συμβόλαια" in greek
     assert '<option value="futures">Futures</option>' not in korean
     assert '<option value="balanced" selected>Balanced</option>' not in greek
 

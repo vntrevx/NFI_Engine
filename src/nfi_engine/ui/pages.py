@@ -6,6 +6,7 @@ from nfi_engine.api.models import LogEntryResponse
 from nfi_engine.config import RuntimeSettings
 from nfi_engine.ui.assets_dashboard import DASHBOARD_SCRIPT, DASHBOARD_STYLE
 from nfi_engine.ui.assets_data_lifecycle import DATA_LIFECYCLE_SCRIPT
+from nfi_engine.ui.assets_exchange_picker import EXCHANGE_PICKER_SCRIPT
 from nfi_engine.ui.assets_login import LOGIN_SCRIPT
 from nfi_engine.ui.assets_logs import LOGS_SCRIPT
 from nfi_engine.ui.assets_pairlist import PAIRLIST_SCRIPT
@@ -67,6 +68,7 @@ def render_settings_page(
         )
         + render_i18n_script(settings.ui.locale)
         + SETTINGS_SCRIPT
+        + EXCHANGE_PICKER_SCRIPT
         + DATA_LIFECYCLE_SCRIPT
         + RUNTIME_CONTROL_SCRIPT
         + PAIRLIST_SCRIPT,

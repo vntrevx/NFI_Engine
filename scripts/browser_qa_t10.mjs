@@ -37,9 +37,11 @@ const extraEvidenceDir = process.env.NFI_BROWSER_QA_EXTRA_EVIDENCE_DIR
   ? resolve(repoRoot, process.env.NFI_BROWSER_QA_EXTRA_EVIDENCE_DIR)
   : null;
 const qaToken = process.env.NFI_BROWSER_QA_TOKEN ?? `qa-${randomBytes(18).toString("hex")}`;
+const qaUsername = process.env.NFI_BROWSER_QA_USERNAME ?? "admin";
+const qaPassword = process.env.NFI_BROWSER_QA_PASSWORD ?? qaToken;
 const qaExchangeSecret =
   process.env.NFI_BROWSER_QA_EXCHANGE_SECRET ?? `exchange-secret-${randomBytes(12).toString("hex")}`;
-const { redact, redactSecret } = createRedactors(qaToken, qaExchangeSecret);
+const { redact, redactSecret } = createRedactors([qaToken, qaPassword], qaExchangeSecret);
 const startedAt = new Date().toISOString();
 const actionLog = [];
 const requests = [];
@@ -77,7 +79,11 @@ async function main() {
     ["run", "nfi-engine", "serve", "--config", configPath, "--host", "127.0.0.1", "--port", String(port)],
     {
       cwd: repoRoot,
-      env: { ...process.env, NFI_ENGINE_API_TOKEN: qaToken },
+      env: {
+        ...process.env,
+        NFI_ENGINE_API_TOKEN: qaToken,
+        NFI_ENGINE_OPERATOR_PASSWORD: qaPassword,
+      },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -124,7 +130,9 @@ async function main() {
     credentialWordsAppear,
     evidenceDir,
     qaExchangeSecret,
+    qaPassword,
     qaToken,
+    qaUsername,
     record,
     redactSecret,
     screenshots,
@@ -151,6 +159,7 @@ async function main() {
     consoleMessages,
     evidenceDir,
     qaExchangeSecret,
+    qaPassword,
     qaToken,
     requests,
   });

@@ -30,10 +30,18 @@ logging:
 `;
 }
 
-export function createRedactors(qaToken, qaExchangeSecret) {
+export function createRedactors(qaAuthSecrets, qaExchangeSecret) {
+  const authSecrets = Array.isArray(qaAuthSecrets) ? qaAuthSecrets : [qaAuthSecrets];
   const redactSecret = (text) => text.replaceAll(qaExchangeSecret, "<redacted-exchange-secret>");
   return {
-    redact: (text) => redactSecret(text.replaceAll(qaToken, "<redacted-token>")),
+    redact: (text) =>
+      redactSecret(
+        authSecrets.reduce(
+          (redacted, secret) =>
+            secret ? redacted.replaceAll(secret, "<redacted-auth-secret>") : redacted,
+          text,
+        ),
+      ),
     redactSecret,
   };
 }

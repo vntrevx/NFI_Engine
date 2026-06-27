@@ -122,22 +122,23 @@ Runtime-safe fields can be validated, saved as a draft, and applied without
 editing raw YAML.
 
 The first-run setup wizard is the default operator path. It renders this order:
-exchange, exchange API key, exchange API secret, recommended leverage `3x`,
-API permission audit, risk profile, wallet balance fetch button/state, allocated
-amount, futures/spot, and dry-run/live. Dry-run is selected by default. Live remains
+exchange, exchange API key, exchange API secret, API permission audit,
+recommended leverage `3x`, wallet balance fetch button/state, allocated amount,
+futures/spot, and dry-run/live. Dry-run is selected by default. Live remains
 visibly gated and setup preview returns `LIVE_TRADING_REQUIRES_CONFIRMATION`
 until the explicit live confirmation path exists.
 
 The API permission audit uses short operator labels for read, trade, futures,
 withdrawal, and IP allowlist status. Withdrawal-like permission blocks live
 setup; unknown permission remains previewable for dry-run/testnet diagnostics.
-Risk profiles are `safe`, `balanced`, and `expert`; `balanced` keeps the 3x
-default path, while `expert` requires explicit confirmation before setup or
-preflight can pass.
+Safety limit presets are separated into the Safety gates drawer: `safe`,
+`balanced`, and `expert`. `balanced` keeps the 3x default path, while `expert`
+requires explicit confirmation before preflight can pass.
 
 Simple Mode remains available for everyday runtime-safe edits. It keeps exchange,
-trading mode, locale, stake sizing, and max open trades visible. The setup
-preview uses `/api/v1/setup/preview` and returns redacted config text; credential
+trading mode, locale, stake sizing, and max open trades visible. Safety limits
+stay in their own drawer so first-run setup does not ask new operators to tune
+guardrails. The setup preview uses `/api/v1/setup/preview` and returns redacted config text; credential
 values are not written into HTML values, browser storage, logs, or support
 reports. Advanced Mode stays collapsed for later tuning.
 
@@ -222,7 +223,7 @@ gate, local-only network, empty browser storage, and mobile overflow.
 
 For T22 credential/risk QA, the loopback browser evidence under
 `.omo/evidence/2026-06-15-product-completion/task-22-browser/` verifies Home and
-Settings show API permission audit and risk profile state, language apply works
+Settings show API permission audit and safety limit state, language apply works
 for EN/KO/EL without manual F5, browser storage stays empty, external requests
 stay at zero, and desktop/mobile layouts avoid horizontal overflow.
 

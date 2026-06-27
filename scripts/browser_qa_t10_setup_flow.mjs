@@ -17,7 +17,8 @@ export async function captureMobileViews(page, baseUrl, context) {
 }
 
 export async function exerciseHappyPath(page, baseUrl, invalidLogin, context) {
-  await page.locator('[data-testid="login-token"]').fill(context.qaToken);
+  await page.locator('[data-testid="login-username"]').fill(context.qaUsername);
+  await page.locator('[data-testid="login-password"]').fill(context.qaPassword);
   await page.locator('[data-testid="login-button"]').click();
   await page.locator('[data-testid="home-root"]').waitFor();
   await page.waitForLoadState("networkidle");
@@ -107,12 +108,13 @@ export async function exerciseInvalidLogin(page, baseUrl, context) {
   await page.locator('[data-testid="login-root"]').waitFor();
   const loginText = await page.locator('[data-testid="login-root"]').innerText();
   await screenshot(page, "login-empty-desktop.png", context);
-  await page.locator('[data-testid="login-token"]').fill("invalid-qa-token");
+  await page.locator('[data-testid="login-username"]').fill(context.qaUsername);
+  await page.locator('[data-testid="login-password"]').fill("invalid-qa-password");
   await page.locator('[data-testid="login-button"]').click();
   await page.locator('[data-testid="login-state"]').waitFor({ state: "visible" });
   await page.waitForFunction(() => document.body.innerText.includes("HTTP 401"));
   const stillLogin = await page.locator('[data-testid="login-root"]').count();
-  await page.locator('[data-testid="login-token"]').fill("");
+  await page.locator('[data-testid="login-password"]').fill("");
   context.record("invalid-login-denied", { statusText: "HTTP 401", stillLogin: stillLogin === 1 });
   return {
     denied: stillLogin === 1,
@@ -131,6 +133,8 @@ export async function storageState(page) {
 async function auditHomeCockpit(page) {
   const ids = [
     "operator-cockpit",
+    "open-trades",
+    "session-pnl",
     "cockpit-configured",
     "cockpit-safety",
     "cockpit-capability-level",
@@ -178,7 +182,7 @@ async function auditSetupWizard(page) {
     apply: await page.locator('[data-testid="update-apply-state"]').innerText(),
     rollback: await page.locator('[data-testid="update-rollback-state"]').innerText(),
   };
-  await page.locator('[data-testid="settings-update-panel"]').waitFor();
+  await page.locator('[data-testid="settings-update-panel"]').waitFor({ state: "attached" });
   return {
     orderedStepIds,
     positions,

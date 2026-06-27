@@ -33,6 +33,7 @@ export async function exerciseSettingsInteractions(page, baseUrl) {
     '[data-testid="wallet-balance-state"]',
     "/api/v1/wallet/balance/fetch",
   );
+  await openDrawer(page, '[data-testid="settings-update-drawer"]');
   const updatePreview = await clickForState(
     page,
     '[data-testid="update-preview-button"]',
@@ -51,6 +52,7 @@ export async function exerciseSettingsInteractions(page, baseUrl) {
     '[data-testid="update-rollback-state"]',
     "/api/v1/update/rollback",
   );
+  await openDrawer(page, '[data-testid="data-lifecycle-drawer"]');
   const lifecycleInspect = await clickForState(
     page,
     '[data-testid="data-lifecycle-inspect-button"]',
@@ -69,6 +71,7 @@ export async function exerciseSettingsInteractions(page, baseUrl) {
     '[data-testid="data-lifecycle-prune-state"]',
     "/api/v1/data-lifecycle/prune",
   );
+  await openDrawer(page, '[data-testid="pairlist-drawer"]');
   await page.locator('[data-testid="pairlist-blacklist"]').fill("DOGE/USDT:USDT");
   const pairlistPreview = await clickForState(
     page,
@@ -104,4 +107,12 @@ export async function exerciseSettingsInteractions(page, baseUrl) {
     pairlistDraft,
     pairlistApply,
   };
+}
+
+async function openDrawer(page, selector) {
+  await page.locator(selector).evaluate((element) => {
+    if (element instanceof HTMLDetailsElement) {
+      element.open = true;
+    }
+  });
 }

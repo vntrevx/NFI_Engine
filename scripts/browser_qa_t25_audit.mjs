@@ -12,6 +12,24 @@ export async function layoutAudit(page, name) {
   return await page.evaluate((label) => {
     const root = document.documentElement;
     const viewportWidth = root.clientWidth;
+    const isAuditableVisible = (element) => {
+      const style = window.getComputedStyle(element);
+      if (style.display === "none" || style.visibility === "hidden") {
+        return false;
+      }
+      if (typeof element.checkVisibility === "function" && !element.checkVisibility()) {
+        return false;
+      }
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        if (parent instanceof HTMLDetailsElement && !parent.open) {
+          const summary = parent.querySelector("summary");
+          if (summary !== element && summary?.contains(element) !== true) {
+            return false;
+          }
+        }
+      }
+      return element.getClientRects().length > 0;
+    };
     const clippedText = Array.from(document.querySelectorAll("body *"))
       .filter((element) => {
         const style = window.getComputedStyle(element);
@@ -22,7 +40,7 @@ export async function layoutAudit(page, name) {
         if (["pre", "input", "select", "textarea"].includes(tag)) {
           return false;
         }
-        if (style.display === "none" || style.visibility === "hidden") {
+        if (!isAuditableVisible(element)) {
           return false;
         }
         const hasControlledHorizontalScroll =
@@ -31,10 +49,11 @@ export async function layoutAudit(page, name) {
         if (hasControlledHorizontalScroll) {
           return false;
         }
-        return (
-          element.scrollWidth > element.clientWidth + 2 ||
-          element.scrollHeight > element.clientHeight + 2
-        );
+        const horizontalClip =
+          element.scrollWidth > element.clientWidth + 2 && style.overflowX !== "visible";
+        const verticalClip =
+          element.scrollHeight > element.clientHeight + 2 && style.overflowY !== "visible";
+        return horizontalClip || verticalClip;
       })
       .slice(0, 8)
       .map((element) => ({
@@ -63,6 +82,9 @@ export async function layoutAudit(page, name) {
       }));
     const actionable = Array.from(document.querySelectorAll("button, a.button, a[data-testid]"))
       .filter((element) => {
+        if (!isAuditableVisible(element)) {
+          return false;
+        }
         const box = element.getBoundingClientRect();
         return box.width > 0 && box.height > 0;
       })

@@ -7,6 +7,8 @@ from typing import Final
 from nfi_engine.config import Locale, RuntimeSettings
 from nfi_engine.ui.i18n import localize
 from nfi_engine.ui.i18n_keys import MessageKey
+from nfi_engine.ui.settings_exchange import render_setup_exchange_select
+from nfi_engine.ui.setup_credentials import render_extra_credential_steps
 from nfi_engine.ui.setup_secret import render_secret_step
 from nfi_engine.ui.setup_wallet import render_wallet_step
 
@@ -50,9 +52,9 @@ def render_setup_wizard(settings: RuntimeSettings, *, locale: Locale) -> str:
                 name="api_secret",
                 locale=locale,
             ),
+            render_extra_credential_steps(locale=locale),
             _permission_step(settings, locale=locale),
             _leverage_step(locale=locale),
-            _risk_profile_step(settings, locale=locale),
             render_wallet_step(locale=locale),
             _amount_step(amount, locale=locale),
             _market_mode_step(settings, locale=locale),
@@ -76,29 +78,12 @@ def render_setup_wizard(settings: RuntimeSettings, *, locale: Locale) -> str:
 """
 
 
-def _risk_profile_step(settings: RuntimeSettings, *, locale: Locale) -> str:
-    label = localize(locale, MessageKey.SETUP_RISK_PROFILE)
-    return f"""
-          <div class="field-row" data-testid="setup-step-risk-profile">
-            <label for="setup-risk-profile">{label}</label>
-            <select id="setup-risk-profile" name="risk_profile">
-              {_option(locale=locale, value=settings.risk.risk_profile.value, option="safe")}
-              {_option(locale=locale, value=settings.risk.risk_profile.value, option="balanced")}
-              {_option(locale=locale, value=settings.risk.risk_profile.value, option="expert")}
-            </select>
-            <label class="inline-check" for="setup-expert-risk-confirmed">
-              <input id="setup-expert-risk-confirmed" name="expert_risk_confirmed"
-                type="checkbox" value="true">
-              {localize(locale, MessageKey.SETUP_RISK_EXPERT_CONFIRM)}
-            </label>
-          </div>
-"""
-
-
 def _permission_step(settings: RuntimeSettings, *, locale: Locale) -> str:
     return f"""
-          <fieldset class="field-row" data-testid="setup-step-permission-audit">
-            <legend>{localize(locale, MessageKey.SETUP_PERMISSION_AUDIT)}</legend>
+          <details class="setup-permission-drawer" data-testid="setup-step-permission-audit">
+            <summary>{localize(locale, MessageKey.SETUP_PERMISSION_AUDIT)}</summary>
+            <fieldset>
+              <legend>{localize(locale, MessageKey.SETUP_PERMISSION_AUDIT)}</legend>
             {
         _permission_select(
             locale=locale,
@@ -144,7 +129,8 @@ def _permission_step(settings: RuntimeSettings, *, locale: Locale) -> str:
             value=settings.exchange.permission_ip_allowlist.value,
         )
     }
-          </fieldset>
+            </fieldset>
+          </details>
 """
 
 
@@ -221,7 +207,14 @@ def _exchange_step(settings: RuntimeSettings, *, locale: Locale) -> str:
     return f"""
           <div class="field-row" data-testid="setup-step-exchange">
             <label for="setup-exchange">{localize(locale, MessageKey.SETUP_EXCHANGE)}</label>
-            <input id="setup-exchange" name="exchange" value="{escape(settings.exchange.name)}">
+            {
+        render_setup_exchange_select(
+            field_id="setup-exchange",
+            name="exchange",
+            value=settings.exchange.name,
+            locale=locale,
+        )
+    }
             <span class="field-note">{localize(locale, MessageKey.SETTINGS_RELOAD_REQUIRED)}</span>
           </div>
 """

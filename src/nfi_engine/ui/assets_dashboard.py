@@ -23,7 +23,7 @@ DASHBOARD_STYLE: Final = """
   min-height: 210px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #f8fbfa;
+  background: var(--panel-subtle);
   overflow: hidden;
 }
 .chart-canvas-wrap canvas {
@@ -33,12 +33,12 @@ DASHBOARD_STYLE: Final = """
 }
 .chart-panel[data-chart-state="error"] .state {
   border-left-color: var(--danger);
-  background: #fff1f0;
+  background: var(--danger-soft);
 }
 .chart-panel[data-chart-state="stale"] .state,
 .chart-panel[data-chart-state="empty"] .state {
   border-left-color: var(--warn);
-  background: #fff8e1;
+  background: var(--warn-soft);
 }
 @media (max-width: 780px) {
   .chart-heading, .chart-footer { display: block; }
@@ -100,9 +100,9 @@ DASHBOARD_SCRIPT: Final = """
 
   function drawEmpty(context, frame) {
     context.clearRect(0, 0, frame.width, frame.height);
-    context.fillStyle = '#f8fbfa';
+    context.fillStyle = '#f9fbfa';
     context.fillRect(0, 0, frame.width, frame.height);
-    context.strokeStyle = '#ccd6d1';
+    context.strokeStyle = '#c8d5cf';
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(24, frame.height - 36);
@@ -123,9 +123,9 @@ DASHBOARD_SCRIPT: Final = """
     const top = 18;
     const bottom = frame.height - 34;
     context.clearRect(0, 0, frame.width, frame.height);
-    context.fillStyle = '#f8fbfa';
+    context.fillStyle = '#f9fbfa';
     context.fillRect(0, 0, frame.width, frame.height);
-    context.strokeStyle = '#dce5e1';
+    context.strokeStyle = '#c8d5cf';
     context.lineWidth = 1;
     for (const level of [0.25, 0.5, 0.75]) {
       const y = top + (bottom - top) * level;
@@ -147,7 +147,7 @@ DASHBOARD_SCRIPT: Final = """
       }
     });
     context.stroke();
-    context.fillStyle = '#17201d';
+    context.fillStyle = '#16201c';
     const last = points[points.length - 1];
     context.fillText(`${last.label} ${last.value.toFixed(4)}`, left, frame.height - 12);
     canvas.dataset.renderedPoints = String(points.length);

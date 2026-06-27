@@ -59,10 +59,11 @@ export async function exerciseLanguageSwitches(page, baseUrl, countDocumentReque
   };
 }
 
-export async function login(page, baseUrl, qaToken) {
+export async function login(page, baseUrl, qaUsername, qaPassword) {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.locator('[data-testid="login-root"]').waitFor();
-  await page.locator('[data-testid="login-token"]').fill(qaToken);
+  await page.locator('[data-testid="login-username"]').fill(qaUsername);
+  await page.locator('[data-testid="login-password"]').fill(qaPassword);
   await page.locator('[data-testid="login-button"]').click();
   await page.locator('[data-testid="home-root"]').waitFor();
   await page.waitForLoadState("networkidle");
@@ -135,7 +136,7 @@ async function switchLocale(page, locale, visibleText, countDocumentRequests = (
   await page.locator('[name="ui.locale"]').selectOption(locale);
   await page.locator('[data-testid="apply-button"]').click();
   await page.waitForFunction((expected) => document.documentElement.lang === expected, locale);
-  await page.locator(`text=${visibleText}`).waitFor();
+  await page.waitForFunction((text) => document.body.innerText.includes(text), visibleText);
   await page.waitForLoadState("networkidle");
   const afterDocuments = countDocumentRequests("/settings");
   return {

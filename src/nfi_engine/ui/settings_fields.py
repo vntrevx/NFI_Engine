@@ -6,6 +6,7 @@ from typing import Final, assert_never
 from nfi_engine.config import FieldGroup, FieldMetadata, Locale, RuntimeSettings, frontend_metadata
 from nfi_engine.ui.i18n import localize
 from nfi_engine.ui.i18n_keys import MessageKey
+from nfi_engine.ui.settings_exchange import render_exchange_select
 from nfi_engine.ui.settings_field_values import field_value
 
 NUMERIC_FIELDS: Final = frozenset(
@@ -40,6 +41,11 @@ PERMISSION_FIELDS: Final = frozenset(
         "exchange.permission_ip_allowlist",
     )
 )
+FIXED_SELECT_OPTIONS: Final[dict[str, tuple[str, ...]]] = {
+    "exchange.trading_mode": ("spot", "futures"),
+    "risk.risk_profile": ("safe", "balanced", "expert"),
+    "logging.level": ("DEBUG", "INFO", "WARNING", "ERROR"),
+}
 OPTION_LABELS: Final[dict[str, MessageKey]] = {
     "aggressive": MessageKey.SETUP_OPTION_AGGRESSIVE,
     "balanced": MessageKey.SETUP_OPTION_BALANCED,
@@ -57,10 +63,10 @@ SIMPLE_FIELD_ORDER: Final = (
     "exchange.name",
     "exchange.trading_mode",
     "ui.locale",
-    "risk.risk_profile",
     "risk.stake_usdt",
     "risk.max_open_trades",
 )
+SAFETY_FIELD_PATHS: Final = frozenset(("risk.risk_profile", "risk.expert_risk_confirmed"))
 
 
 def render_settings_fields(settings: RuntimeSettings) -> str:
@@ -72,7 +78,7 @@ def render_settings_fields(settings: RuntimeSettings) -> str:
         _field_row(settings=settings, field=field, locale=locale) for field in _advanced_fields()
     )
     return (
-        '<div data-testid="simple-settings" class="settings-group">\n'
+        '<div data-testid="simple-settings" class="settings-group settings-simple-group">\n'
         f"  <h2>{localize(locale, MessageKey.SETTINGS_SIMPLE_MODE)}</h2>\n"
         f'  <p class="muted">{localize(locale, MessageKey.SETTINGS_SIMPLE_HELP)}</p>\n'
         f'  <div class="field-grid">\n{simple}\n  </div>\n'
@@ -97,10 +103,11 @@ def _simple_fields() -> tuple[FieldMetadata, ...]:
 
 def _advanced_fields() -> tuple[FieldMetadata, ...]:
     simple_paths = frozenset(SIMPLE_FIELD_ORDER)
+    hidden_paths = simple_paths | SAFETY_FIELD_PATHS
     return tuple(
         field
         for field in _visible_fields()
-        if field.ui_group is FieldGroup.ADVANCED and field.path not in simple_paths
+        if field.ui_group is FieldGroup.ADVANCED and field.path not in hidden_paths
     )
 
 
@@ -159,19 +166,21 @@ def _select_control(
     disabled: str,
     locale: Locale,
 ) -> str | None:
-    if field.path == "exchange.trading_mode":
-        return _select(
+    if field.path == "exchange.name":
+        return render_exchange_select(
             common=common,
             value=value,
-            options=("spot", "futures"),
             disabled=disabled,
             locale=locale,
         )
-    if field.path == "risk.risk_profile":
+    fixed_options = FIXED_SELECT_OPTIONS.get(field.path)
+    if fixed_options is not None:
+        fixed_disabled = disabled if field.path == "exchange.trading_mode" else ""
         return _select(
             common=common,
             value=value,
-            options=("safe", "balanced", "expert"),
+            options=fixed_options,
+            disabled=fixed_disabled,
             locale=locale,
         )
     if field.path in PERMISSION_FIELDS:
@@ -184,13 +193,6 @@ def _select_control(
         )
     if field.path == "ui.locale":
         return _locale_select(common=common, value=value)
-    if field.path == "logging.level":
-        return _select(
-            common=common,
-            value=value,
-            options=("DEBUG", "INFO", "WARNING", "ERROR"),
-            locale=locale,
-        )
     return None
 
 

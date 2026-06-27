@@ -27,7 +27,7 @@ LOCAL_BEARER: Final = "local-test-bearer"
 
 @pytest.mark.anyio
 async def test_settings_ui_and_config_workflow_when_local_console_edits_safe_field() -> None:
-    # Given: a local console app without an operator token.
+    # Given: a local console app without configured operator credentials.
     async with _client(create_app(settings=RuntimeSettings())) as client:
         # When: the settings surface and config workflow are exercised.
         page = await client.get("/settings")
@@ -71,7 +71,9 @@ async def test_settings_ui_and_config_workflow_when_local_console_edits_safe_fie
     assert 'data-testid="setup-preview-panel"' in page.text
     assert 'data-testid="setup-preview-button"' in page.text
     assert 'name="intent"' in page.text
-    assert 'name="risk_profile"' in page.text
+    assert 'name="risk_profile"' not in page.text
+    assert 'data-testid="settings-risk-limit-controls"' in page.text
+    assert 'name="risk.risk_profile"' in page.text
     assert 'name="api_key" type="password"' in page.text
     assert 'name="api_secret" type="password"' in page.text
     assert 'data-testid="advanced-settings"' in page.text

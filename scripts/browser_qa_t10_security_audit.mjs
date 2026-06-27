@@ -12,6 +12,11 @@ export async function securityAudit({ invalidLogin, happyPath, storage, visual, 
     (message) => !isExpectedConsoleError(message.text),
   );
   const tokenLeakFiles = scanEvidenceForSensitive(context.qaToken, "qa-token", context);
+  const passwordLeakFiles = scanEvidenceForSensitive(
+    context.qaPassword,
+    "qa-password",
+    context,
+  );
   const exchangeSecretLeakFiles = scanEvidenceForSensitive(
     context.qaExchangeSecret,
     "exchange-secret",
@@ -41,6 +46,7 @@ export async function securityAudit({ invalidLogin, happyPath, storage, visual, 
     storage.sessionStorage.length === 0 ? null : "sessionStorage is not empty",
     externalRequests.length === 0 ? null : "external network request detected",
     tokenLeakFiles.length === 0 ? null : "QA token leaked into evidence",
+    passwordLeakFiles.length === 0 ? null : "QA password leaked into evidence",
     exchangeSecretLeakFiles.length === 0 ? null : "exchange secret leaked into evidence",
     unexpectedConsoleErrors.length === 0 ? null : "unexpected browser console error detected",
     horizontalOverflow.length === 0 ? null : "mobile horizontal overflow detected",
@@ -59,6 +65,8 @@ export async function securityAudit({ invalidLogin, happyPath, storage, visual, 
     unexpectedConsoleErrors,
     tokenLeakCount: tokenLeakFiles.length,
     tokenLeakFiles,
+    passwordLeakCount: passwordLeakFiles.length,
+    passwordLeakFiles,
     exchangeSecretLeakCount: exchangeSecretLeakFiles.length,
     exchangeSecretLeakFiles,
     forbiddenWalletWordingCount,
@@ -85,6 +93,9 @@ function isExpectedConsoleError(text) {
 }
 
 function scanEvidenceForSensitive(secret, label, context) {
+  if (!secret) {
+    return [];
+  }
   const inMemoryLeaks = [
     ["action-log", JSON.stringify(context.actionLog)],
     ["console-summary", JSON.stringify(context.consoleMessages)],

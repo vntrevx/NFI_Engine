@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 from html import escape
+from typing import Final
 
 from nfi_engine.config import Locale
 from nfi_engine.ui.assets import STYLE
 from nfi_engine.ui.i18n import localize
 from nfi_engine.ui.i18n_keys import MessageKey
+
+FAVICON_HREF: Final = (
+    "data:image/svg+xml,"
+    "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
+    "%3Crect width='32' height='32' rx='6' fill='%230f766e'/%3E"
+    "%3Cpath d='M8 21V11h3l6 7v-7h3v10h-3l-6-7v7H8z' fill='white'/%3E"
+    "%3C/svg%3E"
+)
 
 
 def render_document(
@@ -22,6 +31,7 @@ def render_document(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="nfi-csrf-token" content="{escape(csrf_token)}">
+  <link rel="icon" href="{FAVICON_HREF}">
   <title>{escape(title)}</title>
   <style>{STYLE}{extra_style}</style>
 </head>

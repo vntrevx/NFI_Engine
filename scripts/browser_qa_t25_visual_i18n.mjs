@@ -34,6 +34,8 @@ const evidenceDir = resolve(
     ".omo/evidence/2026-06-17-product-completion/wp9/browser",
 );
 const qaToken = process.env.NFI_WP9_BROWSER_TOKEN ?? `wp9-${randomBytes(18).toString("hex")}`;
+const qaUsername = process.env.NFI_WP9_BROWSER_USERNAME ?? "admin";
+const qaPassword = process.env.NFI_WP9_BROWSER_PASSWORD ?? qaToken;
 const requests = [];
 const consoleMessages = [];
 const screenshots = [];
@@ -87,7 +89,11 @@ async function main() {
     ],
     {
       cwd: repoRoot,
-      env: { ...process.env, NFI_ENGINE_API_TOKEN: qaToken },
+      env: {
+        ...process.env,
+        NFI_ENGINE_API_TOKEN: qaToken,
+        NFI_ENGINE_OPERATOR_PASSWORD: qaPassword,
+      },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -115,7 +121,7 @@ async function main() {
       });
     });
 
-    await login(page, baseUrl, qaToken);
+    await login(page, baseUrl, qaUsername, qaPassword);
     page.on("console", (message) => {
       consoleMessages.push({ type: message.type(), text: redact(message.text()) });
     });
