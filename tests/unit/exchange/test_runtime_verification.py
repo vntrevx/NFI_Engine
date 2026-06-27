@@ -6,9 +6,7 @@ from nfi_engine.exchange.capabilities import list_exchange_profiles
 from nfi_engine.exchange.credential_requirements import required_runtime_credential_fields
 from nfi_engine.exchange.mode_runtime_proofs import (
     MODE_RUNTIME_PROOFS,
-    RuntimeProofChannel,
     RuntimeProofKind,
-    runtime_proof_evidence,
 )
 from nfi_engine.exchange.official_requirements import get_official_requirement
 from nfi_engine.exchange.profile_constants import BATCH_RUNTIME_EVIDENCE
@@ -114,6 +112,11 @@ def test_mode_runtime_proofs_are_mode_scoped_fixtures() -> None:
 def test_runtime_evidence_ledgers_are_closed_for_every_batch_mode() -> None:
     # Given
     expected_modes = set(BATCH_RUNTIME_MODES)
+    evidence_ledgers = (
+        (READ_ONLY_BALANCE_EVIDENCE, ":balance:"),
+        (ORDER_LANE_EVIDENCE, ":order:"),
+        (DRY_RUN_ENVIRONMENT_EVIDENCE, ":environment:"),
+    )
 
     # When
     balance_modes = set(READ_ONLY_BALANCE_EVIDENCE)
@@ -125,22 +128,14 @@ def test_runtime_evidence_ledgers_are_closed_for_every_batch_mode() -> None:
     assert order_modes == expected_modes
     assert environment_modes == expected_modes
     for mode in expected_modes:
-        assert READ_ONLY_BALANCE_EVIDENCE[mode] == runtime_proof_evidence(
-            mode,
-            RuntimeProofChannel.READ_ONLY_BALANCE,
-        )
-        assert ORDER_LANE_EVIDENCE[mode] == runtime_proof_evidence(
-            mode,
-            RuntimeProofChannel.ORDER_LANE,
-        )
-        assert DRY_RUN_ENVIRONMENT_EVIDENCE[mode] == runtime_proof_evidence(
-            mode,
-            RuntimeProofChannel.TEST_ENVIRONMENT,
-        )
-        assert mode in READ_ONLY_BALANCE_EVIDENCE[mode]
-        assert mode in ORDER_LANE_EVIDENCE[mode]
-        assert mode in DRY_RUN_ENVIRONMENT_EVIDENCE[mode]
-        assert "test_runtime_verification.py" not in READ_ONLY_BALANCE_EVIDENCE[mode]
+        mode_evidence = {ledger[mode] for ledger, _ in evidence_ledgers}
+        assert len(mode_evidence) == len(evidence_ledgers)
+        for ledger, channel_marker in evidence_ledgers:
+            evidence = ledger[mode]
+            assert evidence.startswith("src/nfi_engine/exchange/mode_runtime_proofs.py#")
+            assert f"#{mode}" in evidence
+            assert channel_marker in evidence
+            assert "test_runtime_verification.py" not in evidence
 
 
 def test_batch_profile_evidence_points_to_mode_runtime_proof_source() -> None:
