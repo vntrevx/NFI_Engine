@@ -53,6 +53,18 @@ The design boundary may support testnet order-lane evidence. It must not
 enable real-money orders, weaken live blockers, or bypass credential permission
 checks.
 
+The executable readiness surface for this boundary is:
+
+```bash
+uv run nfi-engine exchange testnet-pilot --config examples/x7-futures-paper.yaml --json
+```
+
+The report is a gate summary, not an order-placement command. It checks the
+exchange profile, live lock, testnet scope, credential presence, permission
+hardening, reconciliation requirement, circuit breakers, native X7 runtime,
+idempotency id shape, and order-state coverage while keeping
+`live_money_orders_enabled=false`.
+
 Current RC evidence, including the 2026-06-22 Pi4 T5A benchmark resolution,
 supports paper/testnet operation only. It does not change the live-order lock,
 credential-permission audit requirement, reconciliation requirement, circuit

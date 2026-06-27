@@ -1,7 +1,7 @@
 # Release Status
 
-Date: 2026-06-26 KST
-Current review note: 2026-06-26 KST
+Date: 2026-06-28 KST
+Current review note: 2026-06-28 KST
 
 This document is the current status summary for the evidence-backed
 paper/testnet release-candidate lane. It is not approval for real-money live
@@ -11,13 +11,16 @@ order execution.
 
 The RC lane is approved for local paper/testnet evaluation within the documented
 safety boundary. It is not approval for real-money live order execution. The
-latest 2026-06-26 publication pass adds fresh Docker final-smoke evidence,
-install/uninstall dry-run receipts, a non-mutating Pi4 health probe, and a
-secret-safe real-testnet credential lane that is blocked by missing keys.
+latest 2026-06-28 pass keeps the 2026-06-26 Docker final-smoke publication
+evidence, adds a secret-safe reusable priority-exchange credential probe,
+adds an executable testnet-only pilot readiness report, and adds a repeatable
+Pi4 soak probe wrapper. Real priority-exchange testnet keys are still required
+before real exchange API evidence can replace `blocked-no-key`.
 
 ```text
 .omo/evidence/2026-06-21-x7-live-readiness-pi4-rc/
 .omo/evidence/2026-06-26-nfi-engine-final-product-publication/
+.omo/evidence/2026-06-28-remaining-tracks/
 ```
 
 Final local gates under that root include:
@@ -46,7 +49,23 @@ Final local gates under that root include:
 - `t8-real-testnet-credentials.md`: Binance, Bybit, OKX, and Bitget real
   testnet credential checks are `blocked-no-key`; no raw secret values were
   printed and no real exchange API call was attempted.
-- `final-gate/pytest.txt`: `497 passed`.
+- `scripts/testnet_credential_probe.sh`: repeatable secret-safe probe for
+  Binance, Bybit, OKX, and Bitget testnet credential readiness. It reports
+  `blocked-no-key` when no owner-only credential source is present.
+- `nfi-engine exchange testnet-pilot --config ...`: executable testnet-only
+  readiness report for profile, live lock, testnet scope, credentials,
+  permission hardening, reconciliation, circuit breakers, X7 runtime,
+  idempotency, and order-state coverage. It keeps
+  `live_money_orders_enabled=false`.
+- `scripts/pi4_soak.sh`: repeatable non-mutating Pi4 profile loop built on
+  `scripts/pi4_rc_profile.sh`. A long-running soak still needs fresh wall-clock
+  runtime evidence from the target device.
+- `final-smoke.txt`: 2026-06-28 `bash scripts/final_smoke.sh` exited `0`,
+  including Docker install, `/api/v1/ping`, auth denial, authenticated
+  dashboard/home fetch, safe uninstall, and purge uninstall.
+- `pi4-ssh-probe.txt`: 2026-06-28 key-based SSH probe reached the Pi and
+  captured `temp=49.6'C`, `throttled=0xe0000`.
+- `final-gate/pytest.txt`: 2026-06-28 full test suite `556 passed`.
 - `final-gate/release-wording-scan-final.txt`: `violations=0`.
 
 ## Completed
@@ -76,6 +95,9 @@ Final local gates under that root include:
   currently reports zero violations.
 - Public docs now describe username/password operator login instead of the old
   token-paste login flow.
+- Testnet-only pilot readiness is now executable as a CLI report, including a
+  stable sample client order id and a closed order-state list. It does not
+  submit exchange orders.
 
 ## Partial
 
@@ -92,6 +114,8 @@ Final local gates under that root include:
   available in T8, so live-like balance/order validation remains `blocked-no-key`.
 - The dashboard is usable as an operator cockpit, but richer position, account,
   PnL, and risk compression still belongs to later work.
+- Pi4 soak automation is present, but multi-hour or multi-day evidence must be
+  captured on the target hardware after the operator starts the soak window.
 
 ## Blocked Or Not Done
 
@@ -103,6 +127,8 @@ Final local gates under that root include:
   secret storage; they are not recoverable from sanitized RC evidence.
 - Real Binance, Bybit, OKX, and Bitget testnet credential checks are blocked
   until safe testnet keys are supplied through local secret storage.
+- A GitHub release tag can be cut after the 2026-06-28 quality gates pass and
+  the release notes are checked against `docs/release-wording.md`.
 - Multi-OS install/uninstall repetition beyond the current matrix still needs
   more evidence.
 

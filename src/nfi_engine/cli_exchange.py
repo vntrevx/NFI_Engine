@@ -37,6 +37,8 @@ from nfi_engine.exchange import (
 )
 from nfi_engine.exchange.discovery import parse_exchange_id
 from nfi_engine.exchange.simulator import DeterministicExchangeSimulator
+from nfi_engine.exchange.testnet_pilot import build_testnet_pilot_report
+from nfi_engine.exchange.testnet_pilot_models import TestnetPilotReport
 from nfi_engine.reconciliation import (
     ReconciliationError,
     ReconciliationReport,
@@ -133,6 +135,22 @@ def exchange_capabilities(
     sys.stdout.write(output)
 
 
+@exchange_app.command("testnet-pilot")
+def exchange_testnet_pilot(
+    config: Annotated[Path, typer.Option("--config", exists=True, dir_okay=False)],
+    json_output: Annotated[bool, typer.Option("--json/--text")] = False,
+) -> None:
+    try:
+        settings = load_runtime_settings(config)
+    except ConfigLoadError as exc:
+        _exit_with_error(exc.code.value, exc.message)
+    report = build_testnet_pilot_report(settings=settings)
+    if json_output:
+        sys.stdout.write(report.model_dump_json(indent=2) + "\n")
+        return
+    _write_testnet_pilot_report(report)
+
+
 @exchange_app.command("reconcile")
 def reconcile_exchange(
     config: Annotated[Path, typer.Option("--config", exists=True, dir_okay=False)],
@@ -169,6 +187,20 @@ def _write_reconciliation_report(report: ReconciliationReport) -> None:
     for issue in report.issues:
         sys.stdout.write(
             f"issue={issue.code.value}\tsubject={issue.subject}\taction={issue.suggested_action}\n",
+        )
+
+
+def _write_testnet_pilot_report(report: TestnetPilotReport) -> None:
+    sys.stdout.write(f"exchange={report.exchange}\n")
+    sys.stdout.write(f"trading_mode={report.trading_mode}\n")
+    sys.stdout.write(f"testnet={str(report.testnet).lower()}\n")
+    sys.stdout.write(f"pilot_ready={str(report.pilot_ready).lower()}\n")
+    sys.stdout.write("live_money_orders_enabled=false\n")
+    sys.stdout.write(f"client_order_id={report.sample_client_order_id}\n")
+    sys.stdout.write(f"blockers={','.join(report.blockers) if report.blockers else 'none'}\n")
+    for control in report.controls:
+        sys.stdout.write(
+            f"control={control.stage}\tstatus={control.status.value}\tcode={control.code}\n",
         )
 
 
