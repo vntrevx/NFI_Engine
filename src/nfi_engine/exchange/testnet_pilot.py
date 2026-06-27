@@ -16,9 +16,11 @@ from .testnet_pilot_checks import (
 )
 from .testnet_pilot_models import (
     PILOT_STATES,
+    PILOT_TRANSITIONS,
     ControlDraft,
     TestnetPilotControl,
     TestnetPilotControlStatus,
+    TestnetPilotExecutionPlan,
     TestnetPilotReport,
     pass_control,
 )
@@ -28,6 +30,7 @@ CLIENT_ID_DIGEST_LENGTH: Final = 16
 
 
 def build_testnet_pilot_report(*, settings: RuntimeSettings) -> TestnetPilotReport:
+    client_order_id = build_testnet_client_order_id(settings=settings)
     controls = (
         profile_check(settings),
         live_lock_check(settings),
@@ -49,7 +52,8 @@ def build_testnet_pilot_report(*, settings: RuntimeSettings) -> TestnetPilotRepo
         testnet=settings.exchange.testnet,
         pilot_ready=not blockers,
         live_money_orders_enabled=False,
-        sample_client_order_id=build_testnet_client_order_id(settings=settings),
+        sample_client_order_id=client_order_id,
+        execution_plan=build_testnet_execution_plan(client_order_id=client_order_id),
         states=PILOT_STATES,
         controls=controls,
         blockers=blockers,
@@ -68,6 +72,17 @@ def build_testnet_client_order_id(*, settings: RuntimeSettings) -> str:
     )
     digest = sha256(raw_key.encode("utf-8")).hexdigest()[:CLIENT_ID_DIGEST_LENGTH]
     return f"nfi-tn-{digest}"
+
+
+def build_testnet_execution_plan(*, client_order_id: str) -> TestnetPilotExecutionPlan:
+    return TestnetPilotExecutionPlan(
+        client_order_id=client_order_id,
+        dry_run_preview_required=True,
+        kill_switch_required=True,
+        reconciliation_required=True,
+        idempotency_key_source="exchange|trading_mode|strategy|first_pair|pilot_version",
+        transitions=PILOT_TRANSITIONS,
+    )
 
 
 def _idempotency_check() -> TestnetPilotControl:
