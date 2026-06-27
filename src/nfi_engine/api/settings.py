@@ -44,9 +44,10 @@ def validate_api_auth_settings(settings: RuntimeSettings) -> None:
         return
     token = settings.api.auth_token
     password = settings.api.operator_password
-    has_strong_token = token is not None and len(token) >= MIN_PRODUCTION_TOKEN_LENGTH
-    has_strong_password = password is not None and len(password) >= MIN_PRODUCTION_TOKEN_LENGTH
-    if (not has_strong_token and not has_strong_password) or token in WEAK_TOKENS:
+    has_auth_value = token is not None or password is not None
+    weak_token = token is not None and _is_weak_auth_value(token)
+    weak_password = password is not None and _is_weak_auth_value(password)
+    if not has_auth_value or weak_token or weak_password:
         raise ApiConfigurationError(
             code=ApiErrorCode.API_WEAK_AUTH_VALUE,
             message="non-local API environments require strong operator credentials",
@@ -62,3 +63,7 @@ def _env_config_path() -> Path | None:
     if raw_path is None or raw_path == "":
         return None
     return Path(raw_path)
+
+
+def _is_weak_auth_value(value: str) -> bool:
+    return len(value) < MIN_PRODUCTION_TOKEN_LENGTH or value in WEAK_TOKENS

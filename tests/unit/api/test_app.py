@@ -218,6 +218,19 @@ def test_auth_validation_rejects_weak_token_outside_local_environment() -> None:
         validate_api_auth_settings(settings)
 
 
+def test_auth_validation_rejects_weak_operator_password_outside_local_environment() -> None:
+    # Given: a production environment with a strong bearer token but weak browser password.
+    settings = _settings(
+        bearer="production-grade-bearer-token",
+        environment="production",
+        operator_password="password",  # noqa: S106 - test-only weak placeholder.
+    )
+
+    # When/Then: startup auth validation rejects the weak login credential too.
+    with pytest.raises(ApiConfigurationError, match=ApiErrorCode.API_WEAK_AUTH_VALUE):
+        validate_api_auth_settings(settings)
+
+
 def _settings(
     *,
     bearer: str = LOCAL_BEARER,
