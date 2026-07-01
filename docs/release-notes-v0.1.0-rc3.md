@@ -11,6 +11,8 @@ It is still a paper/testnet release candidate, not a live-ready release.
   present: the persistence/dashboard integration test now accepts the
   server-rendered home fallback contract as well as the React shell contract.
 - Main-branch CI passed after the fix.
+- Repository cleanup removed the internal root `DESIGN.md` file and the
+  superseded `v0.1.0-rc2` release-note file from the published tree.
 
 ## Included from rc2
 
@@ -62,4 +64,5 @@ git diff --check
 Observed local results included `643 passed` for pytest, `0 errors` from
 basedpyright, and `violations=0` from the release wording scan.
 
-GitHub Actions CI passed on main for commit `19d3b5d` after the fallback test fix.
+GitHub Actions CI passed on main and on the `v0.1.0-rc3` tag after the fallback
+test fix.
