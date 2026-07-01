@@ -10,6 +10,7 @@ init_template=false
 output_path=""
 runtime_dir="${NFI_ENGINE_TESTNET_PROBE_RUNTIME_DIR:-.runtime/testnet-credential-probe}"
 priority_modes="binance:futures bybit:futures okx:futures bitget:futures"
+selected_exchange=""
 
 die() {
   printf '%s\n' "$1" >&2
@@ -18,11 +19,13 @@ die() {
 
 print_help() {
   cat <<'HELP'
-Usage: bash scripts/testnet_credential_probe.sh [--credentials-dir DIR] [--credentials-file PATH] [--init-template] [--output PATH]
+Usage: bash scripts/testnet_credential_probe.sh [--credentials-dir DIR] [--credentials-file PATH] [--exchange EXCHANGE] [--init-template] [--output PATH]
 
 Runs a secret-safe priority-exchange testnet credential probe. It never prints
 credential values. If no owner-only credential file with recognized fields is
 available, it reports blocked-no-key and only runs report-only runtime checks.
+Pass --exchange binance for the owner-primary lane. Use bybit, okx, or bitget
+only when collecting a redacted issue-driven expansion report.
 
 Default per-exchange files:
   .runtime/secrets/testnet-binance.env
@@ -47,6 +50,10 @@ while [ "$#" -gt 0 ]; do
       credentials_dir="${2:?TESTNET_PROBE_MISSING_VALUE: --credentials-dir}"
       shift 2
       ;;
+    --exchange)
+      selected_exchange="$(printf '%s' "${2:?TESTNET_PROBE_MISSING_VALUE: --exchange}" | tr '[:upper:]' '[:lower:]')"
+      shift 2
+      ;;
     --init-template)
       init_template=true
       shift
@@ -69,6 +76,34 @@ fi
 cd "$repo_root"
 mkdir -p "$runtime_dir"
 
+active_priority_modes() {
+  if [ -z "$selected_exchange" ]; then
+    printf '%s\n' "$priority_modes"
+    return
+  fi
+  for mode in $priority_modes; do
+    exchange="${mode%%:*}"
+    if [ "$exchange" = "$selected_exchange" ]; then
+      printf '%s\n' "$mode"
+      return
+    fi
+  done
+  die "TESTNET_PROBE_UNSUPPORTED_EXCHANGE: $selected_exchange"
+}
+
+validate_selected_exchange() {
+  if [ -z "$selected_exchange" ]; then
+    return
+  fi
+  for mode in $priority_modes; do
+    exchange="${mode%%:*}"
+    if [ "$exchange" = "$selected_exchange" ]; then
+      return
+    fi
+  done
+  die "TESTNET_PROBE_UNSUPPORTED_EXCHANGE: $selected_exchange"
+}
+
 template_fields() {
   case "$1" in
     okx | bitget)
@@ -83,7 +118,7 @@ template_fields() {
 write_template() {
   mkdir -p "$credentials_dir"
   chmod 700 "$credentials_dir"
-  for mode in $priority_modes; do
+  for mode in $(active_priority_modes); do
     exchange="${mode%%:*}"
     template_file="$credentials_dir/testnet-$exchange.env"
     if [ -f "$template_file" ]; then
@@ -163,12 +198,16 @@ credential_status_for_file() {
 }
 
 if [ "$init_template" = true ]; then
+  validate_selected_exchange
   write_template
   exit 0
 fi
 
+validate_selected_exchange
+
 printf 'probe=testnet-credential\n'
 printf 'credentials_dir=%s\n' "$credentials_dir"
+printf 'selected_exchange=%s\n' "${selected_exchange:-all}"
 printf 'secrets=redacted\n'
 
 tmp_dir="$(mktemp -d "${runtime_dir%/}/probe.XXXXXX")"
@@ -177,7 +216,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for mode in $priority_modes; do
+for mode in $(active_priority_modes); do
   exchange="${mode%%:*}"
   trading_mode="${mode##*:}"
   probe_credential_file="$(credential_file_for_exchange "$exchange")"

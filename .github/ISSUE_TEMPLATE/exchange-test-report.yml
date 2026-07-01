@@ -1,0 +1,85 @@
+name: Exchange test report
+description: Report a paper/testnet exchange check without sharing secrets.
+title: "[exchange] "
+labels: ["exchange", "testnet"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for exchange setup, wallet balance, runtime-check, or testnet pilot reports.
+        Never paste API keys, API secrets, passphrases, cookies, tokens, seed phrases, private keys, screenshots with secrets, or full `.runtime` files.
+  - type: dropdown
+    id: exchange
+    attributes:
+      label: Exchange
+      description: Binance is the primary deep-validation lane. Other exchanges are issue-driven expansion lanes.
+      options:
+        - Binance
+        - Bybit
+        - OKX
+        - Bitget
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Trading mode
+      options:
+        - futures
+        - spot
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - testnet
+        - demo or sandbox
+        - dry-run only
+        - mainnet credential read-only
+    validations:
+      required: true
+  - type: textarea
+    id: command-output
+    attributes:
+      label: Redacted command output
+      description: Paste only redacted output from runtime-check, wallet balance, or testnet-pilot commands.
+      render: text
+      placeholder: |
+        bash scripts/testnet_credential_probe.sh --exchange binance
+        bash scripts/testnet_credential_probe.sh --exchange <binance|bybit|okx|bitget>
+        uv run nfi-engine exchange testnet-pilot --config <redacted-config> --json
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened
+      description: Include stable machine codes such as blocked-no-key, TESTNET_PILOT_CREDENTIALS_MISSING, or runtime-check codes.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: Say which action should have passed or which blocker seems wrong.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: NFI Engine version or commit
+      placeholder: v0.1.0-rc1 or git commit hash
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Secret safety confirmation
+      options:
+        - label: I removed API keys, API secrets, passphrases, tokens, cookies, seed phrases, private keys, and wallet/private account identifiers from this report.
+          required: true
+        - label: I understand this report is for paper/testnet diagnostics, not a claim that real-money live trading is enabled.
+          required: true

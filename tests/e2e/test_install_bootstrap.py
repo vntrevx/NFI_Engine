@@ -33,7 +33,8 @@ def test_package_scripts_offer_npm_and_bun_bootstrap_commands() -> None:
         in package_text
     )
     assert '"nfi:pi4:rc-check": "bash scripts/pi4_rc_profile.sh"' in package_text
-    assert '"dependencies"' not in package_text
+    assert '"react":' in package_text
+    assert '"react-dom":' in package_text
 
 
 def test_install_script_missing_uv_prints_actionable_remediation(tmp_path: Path) -> None:

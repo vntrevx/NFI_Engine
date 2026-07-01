@@ -78,6 +78,122 @@ def test_testnet_credential_probe_empty_templates_stay_blocked_no_key(
         assert f"credential_file={credentials_dir}/testnet-{exchange}.env" in result.stdout
 
 
+def test_testnet_credential_probe_can_run_binance_only(tmp_path: Path) -> None:
+    credentials_dir = tmp_path / "secrets"
+    init_command: Final = [
+        "bash",
+        "scripts/testnet_credential_probe.sh",
+        "--credentials-dir",
+        str(credentials_dir),
+        "--exchange",
+        "binance",
+        "--init-template",
+    ]
+    probe_command: Final = [
+        "bash",
+        "scripts/testnet_credential_probe.sh",
+        "--credentials-dir",
+        str(credentials_dir),
+        "--exchange",
+        "binance",
+    ]
+
+    init_result = subprocess.run(
+        init_command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    result = subprocess.run(
+        probe_command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert init_result.returncode == 0, init_result.stderr
+    assert result.returncode == 0, result.stderr
+    assert (credentials_dir / "testnet-binance.env").exists()
+    assert not (credentials_dir / "testnet-bybit.env").exists()
+    assert "selected_exchange=binance" in result.stdout
+    assert "exchange=binance trading_mode=futures" in result.stdout
+    assert "exchange=bybit" not in result.stdout
+    assert result.stdout.count("credential_status=blocked-no-key") == 1
+
+
+def test_testnet_credential_probe_allows_issue_driven_non_binance_lane(
+    tmp_path: Path,
+) -> None:
+    credentials_dir = tmp_path / "secrets"
+    command: Final = [
+        "bash",
+        "scripts/testnet_credential_probe.sh",
+        "--credentials-dir",
+        str(credentials_dir),
+        "--exchange",
+        "bybit",
+        "--init-template",
+    ]
+    probe_command: Final = [
+        "bash",
+        "scripts/testnet_credential_probe.sh",
+        "--credentials-dir",
+        str(credentials_dir),
+        "--exchange",
+        "bybit",
+    ]
+
+    init_result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    result = subprocess.run(
+        probe_command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert init_result.returncode == 0, init_result.stderr
+    assert result.returncode == 0, result.stderr
+    assert (credentials_dir / "testnet-bybit.env").exists()
+    assert not (credentials_dir / "testnet-binance.env").exists()
+    assert "selected_exchange=bybit" in result.stdout
+    assert "exchange=bybit trading_mode=futures" in result.stdout
+    assert "exchange=binance" not in result.stdout
+    assert "real_testnet_action=blocked-no-key" in result.stdout
+
+
+def test_testnet_credential_probe_rejects_unsupported_exchange(tmp_path: Path) -> None:
+    credentials_dir = tmp_path / "secrets"
+    command: Final = [
+        "bash",
+        "scripts/testnet_credential_probe.sh",
+        "--credentials-dir",
+        str(credentials_dir),
+        "--exchange",
+        "kraken",
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert "TESTNET_PROBE_UNSUPPORTED_EXCHANGE: kraken" in result.stderr
+
+
 def test_testnet_credential_probe_redacts_present_sample_fields(tmp_path: Path) -> None:
     credentials_dir = tmp_path / "secrets"
     credentials_dir.mkdir()

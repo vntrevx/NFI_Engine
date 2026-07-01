@@ -133,18 +133,20 @@ export async function storageState(page) {
 async function auditHomeCockpit(page) {
   const ids = [
     "operator-cockpit",
+    "dashboard-primary-stack",
+    "dashboard-ops-rail",
     "open-trades",
     "session-pnl",
     "cockpit-configured",
-    "cockpit-safety",
+    "cockpit-runtime-health",
+    "cockpit-permission-audit",
     "cockpit-capability-level",
-    "cockpit-active-mode",
     "cockpit-wallet-balance",
-    "cockpit-allocated-amount",
     "cockpit-leverage",
     "cockpit-latest-error",
     "cockpit-next-action",
-    "cockpit-where-next",
+    "execution-safety-signals",
+    "runtime-controls",
   ];
   const values = {};
   for (const id of ids) {
