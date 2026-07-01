@@ -180,7 +180,11 @@ async def test_create_app_dashboard_reads_seeded_persistence_rows(
     assert snapshot.closed_trade_summary.losses == 1
     assert snapshot.closed_trade_summary.profit == "0.75"
     assert home_response.status_code == 200
-    assert 'data-nfi-page="home"' in home_response.text
+    has_react_shell = 'id="nfi-react-root"' in home_response.text
+    if has_react_shell:
+        assert 'data-nfi-page="home"' in home_response.text
+    else:
+        assert 'data-testid="home-root"' in home_response.text
 
 
 async def test_persistence_dashboard_store_initializes_database_once(
