@@ -47,6 +47,8 @@ def write_testnet_pilot_report(report: TestnetPilotReport) -> None:
         f"reconciliation_required={str(report.execution_plan.reconciliation_required).lower()}\n",
     )
     sys.stdout.write(f"blockers={','.join(report.blockers) if report.blockers else 'none'}\n")
+    for signal in report.execution_plan.dashboard_signals:
+        sys.stdout.write(f"dashboard_signal={signal}\n")
     for control in report.controls:
         sys.stdout.write(
             f"control={control.stage}\tstatus={control.status.value}\tcode={control.code}\n",

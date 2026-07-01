@@ -5,6 +5,7 @@ from typing import Final, assert_never
 
 from nfi_engine.config import RuntimeSettings
 from nfi_engine.domain import TradingMode
+from nfi_engine.safety.execution_signals import EXECUTION_SAFETY_SIGNAL_CODES
 
 from .testnet_pilot_checks import (
     credential_check,
@@ -81,6 +82,7 @@ def build_testnet_execution_plan(*, client_order_id: str) -> TestnetPilotExecuti
         kill_switch_required=True,
         reconciliation_required=True,
         idempotency_key_source="exchange|trading_mode|strategy|first_pair|pilot_version",
+        dashboard_signals=EXECUTION_SAFETY_SIGNAL_CODES,
         transitions=PILOT_TRANSITIONS,
     )
 

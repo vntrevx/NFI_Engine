@@ -22,6 +22,7 @@ from nfi_engine.cli_plugins import plugins_app
 from nfi_engine.cli_preflight import preflight_app
 from nfi_engine.cli_profile import profile_app
 from nfi_engine.cli_risk import risk_app
+from nfi_engine.cli_runtime_health import runtime_health_app
 from nfi_engine.cli_sandbox import sandbox_app
 from nfi_engine.cli_serve import serve
 from nfi_engine.cli_setup import setup_app
@@ -59,6 +60,7 @@ app.add_typer(profile_app, name="profile")
 app.add_typer(plugins_app, name="plugins")
 app.add_typer(risk_app, name="risk")
 app.add_typer(sandbox_app, name="sandbox")
+app.add_typer(runtime_health_app, name="runtime-health")
 app.add_typer(setup_app, name="setup")
 app.add_typer(simulate_app, name="simulate")
 app.add_typer(strategy_app, name="strategy")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, Final
 
@@ -7,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nfi_engine.config.enums import Locale, LogLevel, RiskProfileName
-from nfi_engine.domain import MarginMode, TradingMode
+from nfi_engine.domain import MarginMode, OrderType, TradingMode
 from nfi_engine.exchange.permissions import ExchangeApiPermissionState
 
 
@@ -152,6 +153,34 @@ class ReconciliationSettings(StrictConfigModel):
     fixture_path: str | None = None
 
 
+class LiveCanarySettings(StrictConfigModel):
+    enabled: bool = False
+    canary_notional_usdt: Decimal | None = None
+    pair: str | None = None
+    trading_mode: TradingMode | None = None
+    leverage: Decimal | None = None
+    order_type: OrderType | None = None
+    confirmation_phrase: str | None = None
+    reconciliation_captured_at: datetime | None = None
+    wallet_balance_captured_at: datetime | None = None
+
+
+class RestrictedLivePilotSettings(StrictConfigModel):
+    enabled: bool = False
+    canary_pass_marker_path: str | None = None
+    pair_allowlist: str = ""
+    stake_usdt: Decimal | None = None
+    leverage: Decimal | None = None
+    max_open_trades: int | None = None
+    max_daily_loss_usdt: Decimal | None = None
+    manual_halt_file: str | None = None
+    reconciliation_interval_seconds: int | None = None
+    wallet_sync_interval_seconds: int | None = None
+    runtime_duration_seconds: int | None = None
+    reconciliation_captured_at: datetime | None = None
+    wallet_balance_captured_at: datetime | None = None
+
+
 class RuntimeSettings(BaseSettings):
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_prefix="NFI_ENGINE__",
@@ -175,3 +204,5 @@ class RuntimeSettings(BaseSettings):
     circuit_breakers: CircuitBreakerSettings = CircuitBreakerSettings()
     pairlist: PairlistSettings = PairlistSettings()
     reconciliation: ReconciliationSettings = ReconciliationSettings()
+    live_canary: LiveCanarySettings = LiveCanarySettings()
+    restricted_live_pilot: RestrictedLivePilotSettings = RestrictedLivePilotSettings()

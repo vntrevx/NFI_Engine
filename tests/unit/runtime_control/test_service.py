@@ -8,6 +8,7 @@ from nfi_engine.paper import BotCommand, BotState
 from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.runtime_control import RuntimeControlCode, RuntimeControlRequest, control_runtime
 from nfi_engine.runtime_health import (
+    RuntimeDatabaseSnapshot,
     RuntimeHealthSnapshot,
     RuntimeHealthState,
     RuntimeResourceSnapshot,
@@ -132,6 +133,13 @@ def _health(state: RuntimeHealthState) -> RuntimeHealthSnapshot:
             memory_rss_bytes=100_000_000,
             disk_state=state,
             memory_state=RuntimeHealthState.HEALTHY,
+        ),
+        database=RuntimeDatabaseSnapshot(
+            captured_at=now,
+            readable=True,
+            writable=True,
+            state=state,
+            message="database_path=test",
         ),
         wallet_balance=WalletBalanceSnapshot(
             status=WalletBalanceStatus.FETCHED,

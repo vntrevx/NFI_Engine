@@ -27,6 +27,7 @@ class _TestnetPilotExecutionPlanPayload(BaseModel):
     kill_switch_required: bool
     reconciliation_required: bool
     idempotency_key_source: str
+    dashboard_signals: tuple[str, ...]
     transitions: tuple[_TestnetPilotTransitionPayload, ...]
 
 
@@ -116,6 +117,14 @@ circuit_breakers:
     assert payload.execution_plan.kill_switch_required is True
     assert payload.execution_plan.reconciliation_required is True
     assert "strategy" in payload.execution_plan.idempotency_key_source
+    assert set(payload.execution_plan.dashboard_signals) >= {
+        "order_lifecycle",
+        "reconciliation",
+        "idempotency",
+        "kill_switch",
+        "circuit_breakers",
+        "partial_fill_exposure",
+    }
     assert _transition_triggers(payload.execution_plan) >= {
         "partial_fill",
         "kill_switch_or_cancel",
@@ -146,6 +155,8 @@ def test_exchange_testnet_pilot_cli_keeps_example_config_blocked() -> None:
     assert "live_money_orders_enabled=false" in result.stdout
     assert "dry_run_preview_required=true" in result.stdout
     assert "kill_switch_required=true" in result.stdout
+    assert "dashboard_signal=order_lifecycle" in result.stdout
+    assert "dashboard_signal=partial_fill_exposure" in result.stdout
     assert "transition=acknowledged->partially_filled" in result.stdout
     assert "TESTNET_PILOT_CREDENTIALS_MISSING" in result.stdout
 

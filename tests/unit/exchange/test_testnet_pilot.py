@@ -49,6 +49,14 @@ def test_testnet_pilot_passes_for_hardened_testnet_x7_settings() -> None:
         "partially_filled",
         "reconciled",
     }
+    assert set(report.execution_plan.dashboard_signals) >= {
+        "order_lifecycle",
+        "reconciliation",
+        "idempotency",
+        "kill_switch",
+        "circuit_breakers",
+        "partial_fill_exposure",
+    }
 
 
 def test_testnet_pilot_client_order_id_is_stable_and_secret_free() -> None:

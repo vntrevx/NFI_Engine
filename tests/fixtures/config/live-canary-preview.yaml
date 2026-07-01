@@ -1,0 +1,79 @@
+engine:
+  environment: local
+  live_trading: false
+  live_trading_confirmed: false
+exchange:
+  name: binance
+  trading_mode: futures
+  margin_mode: isolated
+  testnet: false
+  api_key: local-live-canary-key
+  api_secret: local-live-canary-secret
+  permission_read: enabled
+  permission_trade: enabled
+  permission_futures: enabled
+  permission_withdrawal: disabled
+  permission_ip_allowlist: enabled
+strategy:
+  name: X7NativeStrategy
+  module: nfi_engine.strategy.nfi_x7:X7NativeStrategy
+database:
+  url: sqlite+aiosqlite:///data/nfi_engine.sqlite3
+risk:
+  stake_usdt: "10"
+  max_daily_loss_pct: "0.05"
+  allocation_cap_pct: "0.10"
+  leverage: "2"
+  max_leverage: "3"
+  liquidation_buffer: "0.05"
+  max_open_trades: "1"
+  stoploss_pct: "0.02"
+  minimal_roi: "0.01"
+  cooldown_seconds: 0
+  locked_pairs: ""
+backtest:
+  timerange: null
+  starting_balance_usdt: "1000"
+  stoploss_pct: "0.10"
+  fee_rate: "0.001"
+  slippage_rate: "0"
+  max_open_trades: "1"
+paper_run:
+  enabled: false
+  max_events: 1
+api:
+  host: 127.0.0.1
+  port: 18080
+  csrf_enabled: true
+ui:
+  enabled: true
+  read_only: false
+logging:
+  level: INFO
+  json_logs: false
+circuit_breakers:
+  enabled: true
+  max_daily_loss_usdt: "5"
+  max_drawdown_pct: "0.05"
+  max_consecutive_losses: 1
+  max_stale_seconds: 999999999
+  max_api_errors: 1
+  max_slippage_pct: "0.01"
+  max_abs_funding_rate: "0.005"
+  manual_halt: false
+  manual_halt_file: .omo/evidence/live-canary-preview-halt
+  max_rejected_orders: 1
+  emergency_exit_enabled: true
+reconciliation:
+  required: true
+  fixture_path: tests/fixtures/exchange/reconcile_match.json
+live_canary:
+  enabled: true
+  canary_notional_usdt: "7.50"
+  pair: BTC/USDT:USDT
+  trading_mode: futures
+  leverage: "2"
+  order_type: market
+  confirmation_phrase: CONFIRM_LIVE_CANARY_PREVIEW
+  reconciliation_captured_at: 2026-06-30T00:00:00Z
+  wallet_balance_captured_at: 2026-06-30T00:00:00Z

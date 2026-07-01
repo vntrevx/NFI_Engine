@@ -55,6 +55,7 @@ class TestnetPilotExecutionPlan(BaseModel):
     kill_switch_required: bool
     reconciliation_required: bool
     idempotency_key_source: str
+    dashboard_signals: tuple[str, ...]
     transitions: tuple[TestnetPilotStateTransition, ...]
 
 

@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 import httpx
 import pytest
 
-from nfi_engine.config import ExchangeSettings, RuntimeSettings
+from nfi_engine.config.models import ExchangeSettings, RuntimeSettings
 from nfi_engine.domain import (
     Leverage,
     OrderState,
@@ -156,7 +156,7 @@ def _signature(params: tuple[tuple[str, str], ...]) -> str:
     return hmac.new(SIGNING_KEY.encode(), payload.encode(), sha256).hexdigest()
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class RecordingPostClient:
     requests: list[httpx.Request] = field(default_factory=list)
 
