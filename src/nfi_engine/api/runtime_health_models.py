@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from nfi_engine.api.models import StrictApiModel
 from nfi_engine.api.wallet_models import WalletBalanceResponse
 from nfi_engine.runtime_health import (
+    RuntimeDatabaseSnapshot,
     RuntimeHealthCheck,
     RuntimeHealthSnapshot,
     RuntimeResourceSnapshot,
@@ -46,6 +47,24 @@ class RuntimeResourceResponse(StrictApiModel):
         )
 
 
+class RuntimeDatabaseResponse(StrictApiModel):
+    captured_at: str
+    readable: bool
+    writable: bool
+    state: str
+    message: str
+
+    @classmethod
+    def from_snapshot(cls, snapshot: RuntimeDatabaseSnapshot) -> RuntimeDatabaseResponse:
+        return cls(
+            captured_at=_datetime_json(snapshot.captured_at),
+            readable=snapshot.readable,
+            writable=snapshot.writable,
+            state=snapshot.state.value,
+            message=snapshot.message,
+        )
+
+
 class X7SemanticStatusResponse(StrictApiModel):
     enabled: bool
     coverage_state: str
@@ -84,6 +103,7 @@ class RuntimeHealthResponse(StrictApiModel):
     next_action: str
     checks: tuple[RuntimeHealthCheckResponse, ...]
     resources: RuntimeResourceResponse
+    database: RuntimeDatabaseResponse
     wallet_balance: WalletBalanceResponse
     x7_semantic_status: X7SemanticStatusResponse
 
@@ -95,6 +115,7 @@ class RuntimeHealthResponse(StrictApiModel):
             next_action=snapshot.next_action,
             checks=tuple(RuntimeHealthCheckResponse.from_check(check) for check in snapshot.checks),
             resources=RuntimeResourceResponse.from_snapshot(snapshot.resources),
+            database=RuntimeDatabaseResponse.from_snapshot(snapshot.database),
             wallet_balance=WalletBalanceResponse.from_snapshot(snapshot.wallet_balance),
             x7_semantic_status=X7SemanticStatusResponse.from_status(snapshot.x7_semantic_status),
         )

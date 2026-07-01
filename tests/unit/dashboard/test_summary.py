@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Final
 
 from nfi_engine.dashboard.models import (
+    DashboardClosedTradeSummary,
     DashboardEquityPoint,
     DashboardOpenPosition,
     DashboardReadModels,
@@ -61,6 +62,33 @@ def test_operator_summary_marks_exposure_without_equity_as_elevated() -> None:
     assert summary.account_equity == Decimal(0)
     assert summary.exposure_pct == Decimal(0)
     assert summary.risk_pressure is DashboardRiskPressure.ELEVATED
+
+
+def test_operator_summary_prefers_closed_trade_summary_over_recent_window() -> None:
+    read_models = DashboardReadModels(
+        closed_trade_summary=DashboardClosedTradeSummary(
+            closed_trades=3,
+            wins=1,
+            losses=2,
+            profit=Decimal("-4.50"),
+        ),
+        recent_trades=(
+            DashboardRecentTrade(
+                trade_id="recent-win",
+                pair="BTC/USDT",
+                side=PositionSide.LONG,
+                state=TradeState.CLOSED,
+                opened_at=NOW,
+                closed_at=NOW,
+                profit=Decimal("99.00"),
+            ),
+        ),
+    )
+
+    summary = summarize_dashboard_read_models(read_models)
+
+    assert summary.closed_trades == 3
+    assert summary.session_profit == Decimal("-4.50")
 
 
 def test_operator_summary_marks_empty_runtime_as_idle() -> None:

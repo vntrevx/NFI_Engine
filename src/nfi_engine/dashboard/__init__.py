@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from nfi_engine.dashboard.account_truth import build_dashboard_account_truth
+from nfi_engine.dashboard.execution_aggregate import summarize_dashboard_execution_aggregate
 from nfi_engine.dashboard.models import (
     DashboardAction,
+    DashboardClosedTradeSummary,
     DashboardEquityPoint,
     DashboardError,
+    DashboardExecutionEvent,
+    DashboardExecutionFill,
+    DashboardExecutionIntent,
+    DashboardExecutionOrder,
+    DashboardExecutionSignal,
     DashboardOpenPosition,
     DashboardPairlistSummary,
     DashboardPricePoint,
@@ -24,11 +32,19 @@ from nfi_engine.dashboard.summary import (
     DashboardRiskPressure,
     summarize_dashboard_read_models,
 )
+from nfi_engine.dashboard.truth_models import DashboardAccountTruth
 
 __all__ = [
+    "DashboardAccountTruth",
     "DashboardAction",
+    "DashboardClosedTradeSummary",
     "DashboardEquityPoint",
     "DashboardError",
+    "DashboardExecutionEvent",
+    "DashboardExecutionFill",
+    "DashboardExecutionIntent",
+    "DashboardExecutionOrder",
+    "DashboardExecutionSignal",
     "DashboardOpenPosition",
     "DashboardOperatorSummary",
     "DashboardPairlistSummary",
@@ -42,7 +58,9 @@ __all__ = [
     "DashboardSnapshot",
     "PersistenceDashboardReadStore",
     "StaticDashboardReadStore",
+    "build_dashboard_account_truth",
     "build_dashboard_actions",
     "build_dashboard_snapshot",
+    "summarize_dashboard_execution_aggregate",
     "summarize_dashboard_read_models",
 ]

@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Final
 
 from nfi_engine.api.models import LogEntryResponse
 from nfi_engine.config import LogLevel, RuntimeSettings
+from nfi_engine.dashboard.account_truth import (
+    build_dashboard_account_truth,
+    redact_dashboard_execution_events,
+)
+from nfi_engine.dashboard.execution_signals import build_dashboard_execution_signals
 from nfi_engine.dashboard.models import (
     DashboardAction,
+    DashboardClosedTradeSummary,
     DashboardError,
     DashboardPairlistSummary,
     DashboardReadiness,
@@ -14,12 +21,17 @@ from nfi_engine.dashboard.models import (
     DashboardReadModels,
     DashboardSnapshot,
 )
+from nfi_engine.domain import TradeState
 from nfi_engine.paper import BotState
 from nfi_engine.preflight.models import PreflightReport
 
 PAIR_PREVIEW_LIMIT: Final = 4
 RECENT_ERROR_LIMIT: Final = 3
 ACTION_LIMIT: Final = 4
+EXECUTION_INTENT_LIMIT: Final = 20
+EXECUTION_ORDER_LIMIT: Final = 20
+EXECUTION_FILL_LIMIT: Final = 50
+EXECUTION_EVENT_LIMIT: Final = 50
 
 READINESS_BLOCKED_ACTION: Final = DashboardAction(
     code="readiness_blocked",
@@ -75,8 +87,17 @@ def build_dashboard_snapshot(
 ) -> DashboardSnapshot:
     pairlist = _pairlist(settings)
     recent_errors = _recent_errors(logs)
+    generated_at = datetime.now(UTC)
+    safe_events = redact_dashboard_execution_events(
+        read_models.recent_execution_events,
+        settings=settings,
+    )
+    account_truth = build_dashboard_account_truth(
+        read_models,
+        now=generated_at,
+    )
     return DashboardSnapshot(
-        generated_at=datetime.now(UTC),
+        generated_at=generated_at,
         bot_state=bot_state,
         trading_mode=settings.exchange.trading_mode.value,
         exchange=settings.exchange.name,
@@ -87,11 +108,21 @@ def build_dashboard_snapshot(
         ),
         readiness=_readiness(readiness),
         pairlist=pairlist,
+        execution_signals=build_dashboard_execution_signals(
+            read_models=read_models,
+            account_truth=account_truth,
+        ),
+        account_truth=account_truth,
         equity_points=read_models.equity_points,
         price_points=read_models.price_points,
         open_positions=read_models.open_positions,
         recent_trades=read_models.recent_trades,
+        closed_trade_summary=_closed_trade_summary(read_models),
         recent_errors=recent_errors,
+        execution_intents=read_models.execution_intents[:EXECUTION_INTENT_LIMIT],
+        open_execution_orders=read_models.open_execution_orders[:EXECUTION_ORDER_LIMIT],
+        recent_execution_fills=read_models.recent_execution_fills[:EXECUTION_FILL_LIMIT],
+        recent_execution_events=safe_events[:EXECUTION_EVENT_LIMIT],
     )
 
 
@@ -150,6 +181,21 @@ def _readiness(report: PreflightReport) -> DashboardReadiness:
             )
             for check in report.checks
         ),
+    )
+
+
+def _closed_trade_summary(read_models: DashboardReadModels) -> DashboardClosedTradeSummary:
+    summary = read_models.closed_trade_summary
+    if summary.closed_trades > 0 or summary.profit != Decimal(0):
+        return summary
+    closed_trades = tuple(
+        trade for trade in read_models.recent_trades if trade.state is TradeState.CLOSED
+    )
+    return DashboardClosedTradeSummary(
+        closed_trades=len(closed_trades),
+        wins=sum(1 for trade in closed_trades if trade.profit > Decimal(0)),
+        losses=sum(1 for trade in closed_trades if trade.profit < Decimal(0)),
+        profit=sum((trade.profit for trade in closed_trades), Decimal(0)),
     )
 
 

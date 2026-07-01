@@ -6,10 +6,19 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict
 
+from nfi_engine.api.dashboard_truth_models import (
+    DashboardAccountTruthResponse,
+    DashboardExecutionEventResponse,
+    DashboardExecutionFillResponse,
+    DashboardExecutionIntentResponse,
+    DashboardExecutionOrderResponse,
+)
 from nfi_engine.dashboard.models import (
     DashboardAction,
+    DashboardClosedTradeSummary,
     DashboardEquityPoint,
     DashboardError,
+    DashboardExecutionSignal,
     DashboardOpenPosition,
     DashboardPricePoint,
     DashboardReadiness,
@@ -64,6 +73,25 @@ class DashboardActionResponse(StrictDashboardApiModel):
             title=action.title,
             detail=action.detail,
             target=action.target,
+        )
+
+
+class DashboardExecutionSignalResponse(StrictDashboardApiModel):
+    code: str
+    title: str
+    status: str
+    detail: str
+
+    @classmethod
+    def from_signal(
+        cls,
+        signal: DashboardExecutionSignal,
+    ) -> DashboardExecutionSignalResponse:
+        return cls(
+            code=signal.code,
+            title=signal.title,
+            status=signal.status,
+            detail=signal.detail,
         )
 
 
@@ -141,6 +169,25 @@ class DashboardRecentTradeResponse(StrictDashboardApiModel):
         )
 
 
+class DashboardClosedTradeSummaryResponse(StrictDashboardApiModel):
+    closed_trades: int
+    wins: int
+    losses: int
+    profit: str
+
+    @classmethod
+    def from_summary(
+        cls,
+        summary: DashboardClosedTradeSummary,
+    ) -> DashboardClosedTradeSummaryResponse:
+        return cls(
+            closed_trades=summary.closed_trades,
+            wins=summary.wins,
+            losses=summary.losses,
+            profit=_decimal_json(summary.profit),
+        )
+
+
 class DashboardErrorResponse(StrictDashboardApiModel):
     at: str
     code: str
@@ -165,11 +212,18 @@ class DashboardSnapshotResponse(StrictDashboardApiModel):
     actions: tuple[DashboardActionResponse, ...]
     readiness: DashboardReadinessResponse
     pairlist: DashboardPairlistResponse
+    execution_signals: tuple[DashboardExecutionSignalResponse, ...]
+    account_truth: DashboardAccountTruthResponse
     equity_points: tuple[DashboardEquityPointResponse, ...]
     price_points: tuple[DashboardPricePointResponse, ...]
     open_positions: tuple[DashboardOpenPositionResponse, ...]
     recent_trades: tuple[DashboardRecentTradeResponse, ...]
+    closed_trade_summary: DashboardClosedTradeSummaryResponse
     recent_errors: tuple[DashboardErrorResponse, ...]
+    execution_intents: tuple[DashboardExecutionIntentResponse, ...]
+    open_execution_orders: tuple[DashboardExecutionOrderResponse, ...]
+    recent_execution_fills: tuple[DashboardExecutionFillResponse, ...]
+    recent_execution_events: tuple[DashboardExecutionEventResponse, ...]
 
     @classmethod
     def from_snapshot(cls, snapshot: DashboardSnapshot) -> DashboardSnapshotResponse:
@@ -187,6 +241,11 @@ class DashboardSnapshotResponse(StrictDashboardApiModel):
                 preview=snapshot.pairlist.preview,
                 quote_asset=snapshot.pairlist.quote_asset,
             ),
+            execution_signals=tuple(
+                DashboardExecutionSignalResponse.from_signal(signal)
+                for signal in snapshot.execution_signals
+            ),
+            account_truth=DashboardAccountTruthResponse.from_truth(snapshot.account_truth),
             equity_points=tuple(
                 DashboardEquityPointResponse.from_point(point) for point in snapshot.equity_points
             ),
@@ -200,8 +259,27 @@ class DashboardSnapshotResponse(StrictDashboardApiModel):
             recent_trades=tuple(
                 DashboardRecentTradeResponse.from_trade(trade) for trade in snapshot.recent_trades
             ),
+            closed_trade_summary=DashboardClosedTradeSummaryResponse.from_summary(
+                snapshot.closed_trade_summary,
+            ),
             recent_errors=tuple(
                 DashboardErrorResponse.from_error(error) for error in snapshot.recent_errors
+            ),
+            execution_intents=tuple(
+                DashboardExecutionIntentResponse.from_intent(intent)
+                for intent in snapshot.execution_intents
+            ),
+            open_execution_orders=tuple(
+                DashboardExecutionOrderResponse.from_order(order)
+                for order in snapshot.open_execution_orders
+            ),
+            recent_execution_fills=tuple(
+                DashboardExecutionFillResponse.from_fill(fill)
+                for fill in snapshot.recent_execution_fills
+            ),
+            recent_execution_events=tuple(
+                DashboardExecutionEventResponse.from_event(event)
+                for event in snapshot.recent_execution_events
             ),
         )
 

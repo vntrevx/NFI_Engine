@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 
 from nfi_engine.api.models import initial_log_entries
 from nfi_engine.api.routes import build_api_router
@@ -22,6 +23,7 @@ from nfi_engine.persistence import create_persistence_database
 from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.preflight.service import run_preflight
 from nfi_engine.profiles.catalog import default_profile_name
+from nfi_engine.ui.react_app import react_static_dir
 from nfi_engine.wallet import WalletBalanceReader
 
 
@@ -50,6 +52,13 @@ def create_app(
     readiness = _readiness(settings=resolved_settings, config_path=resolved_config_path)
     app = FastAPI(title="NFI Engine API", version="0.1.0")
     app.add_exception_handler(RequestValidationError, redacted_request_validation_error)
+    static_dir = react_static_dir()
+    if static_dir.exists():
+        app.mount(
+            "/ui-react",
+            StaticFiles(directory=static_dir),
+            name="ui-react",
+        )
     app.add_api_route(
         "/",
         home_page(

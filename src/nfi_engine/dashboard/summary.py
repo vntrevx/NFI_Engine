@@ -39,12 +39,11 @@ def summarize_dashboard_read_models(
     account_equity, account_available = _latest_account_values(read_models)
     gross_exposure = _gross_exposure(read_models)
     exposure_pct = _exposure_pct(gross_exposure=gross_exposure, account_equity=account_equity)
+    closed_trades, session_profit = _closed_trade_totals(read_models)
     return DashboardOperatorSummary(
         open_trades=len(read_models.open_positions),
-        closed_trades=sum(
-            1 for trade in read_models.recent_trades if trade.state is TradeState.CLOSED
-        ),
-        session_profit=sum((trade.profit for trade in read_models.recent_trades), Decimal(0)),
+        closed_trades=closed_trades,
+        session_profit=session_profit,
         account_equity=account_equity,
         account_available=account_available,
         gross_exposure=gross_exposure,
@@ -57,6 +56,16 @@ def summarize_dashboard_read_models(
         ),
         trade_ids=tuple(trade.trade_id for trade in read_models.recent_trades),
     )
+
+
+def _closed_trade_totals(read_models: DashboardReadModels) -> tuple[int, Decimal]:
+    summary = read_models.closed_trade_summary
+    if summary.closed_trades > 0 or summary.profit != Decimal(0):
+        return summary.closed_trades, summary.profit
+    closed_recent = tuple(
+        trade for trade in read_models.recent_trades if trade.state is TradeState.CLOSED
+    )
+    return len(closed_recent), sum((trade.profit for trade in closed_recent), Decimal(0))
 
 
 def _latest_account_values(read_models: DashboardReadModels) -> tuple[Decimal, Decimal]:

@@ -10,6 +10,7 @@ from nfi_engine.api.auth import OperatorIdentity
 from nfi_engine.api.config_routes import add_config_routes
 from nfi_engine.api.dashboard_routes import add_dashboard_routes
 from nfi_engine.api.data_lifecycle_routes import add_data_lifecycle_routes
+from nfi_engine.api.live_canary_routes import add_live_canary_routes
 from nfi_engine.api.log_lookup import error_lookup_response
 from nfi_engine.api.models import (
     BackupRestoreResponse,
@@ -95,6 +96,7 @@ def build_api_router(
     add_dashboard_routes(protected_router, context=context, logs=logs, readiness=readiness)
     add_wallet_routes(protected_router, context=context)
     add_runtime_health_routes(protected_router, context=context, readiness=readiness)
+    add_live_canary_routes(protected_router, context=context)
     protected_router.add_api_route("/strategies", _strategies(context), methods=["GET"])
     protected_router.add_api_route("/strategy/{name}", _strategy_detail(context), methods=["GET"])
     protected_router.add_api_route("/pair_history", _pair_history, methods=["GET"])

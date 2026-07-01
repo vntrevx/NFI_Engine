@@ -10,6 +10,10 @@ from nfi_engine.config import LogLevel
 from nfi_engine.config.models import RuntimeSettings
 from nfi_engine.dashboard.models import (
     DashboardEquityPoint,
+    DashboardExecutionEvent,
+    DashboardExecutionFill,
+    DashboardExecutionIntent,
+    DashboardExecutionOrder,
     DashboardOpenPosition,
     DashboardPricePoint,
     DashboardReadModels,
@@ -17,6 +21,7 @@ from nfi_engine.dashboard.models import (
 )
 from nfi_engine.dashboard.service import build_dashboard_snapshot
 from nfi_engine.domain import PositionSide, TradeState
+from nfi_engine.execution import ExecutionEventType, ExecutionState
 from nfi_engine.paper import BotState
 from nfi_engine.preflight.models import (
     PreflightCheck,
@@ -25,7 +30,16 @@ from nfi_engine.preflight.models import (
     PreflightStatus,
 )
 
-NOW: Final = datetime(2026, 1, 1, tzinfo=UTC)
+NOW: Final = datetime.now(UTC)
+REDACTION_VALUE = "secret-dashboard-token"
+EXPECTED_EXECUTION_SIGNAL_CODES: Final = (
+    "order_lifecycle",
+    "reconciliation",
+    "idempotency",
+    "kill_switch",
+    "circuit_breakers",
+    "partial_fill_exposure",
+)
 
 
 def test_dashboard_snapshot_serializes_chart_ready_fixture_data() -> None:
@@ -57,6 +71,57 @@ def test_dashboard_snapshot_serializes_chart_ready_fixture_data() -> None:
                 profit=Decimal("1.23"),
             ),
         ),
+        execution_intents=(
+            DashboardExecutionIntent(
+                intent_id="intent-1",
+                pair="BTC/USDT",
+                side=PositionSide.LONG,
+                state=ExecutionState.SUBMITTED,
+                requested_quantity=Decimal("0.10"),
+                requested_price=Decimal("100.00"),
+                updated_at=NOW,
+            ),
+        ),
+        open_execution_orders=(
+            DashboardExecutionOrder(
+                execution_order_id="order-1",
+                intent_id="intent-1",
+                pair="BTC/USDT",
+                side=PositionSide.LONG,
+                state=ExecutionState.PARTIALLY_FILLED,
+                requested_quantity=Decimal("0.10"),
+                requested_price=Decimal("100.00"),
+                filled_quantity=Decimal("0.05"),
+                average_fill_price=Decimal("100.00"),
+                updated_at=NOW,
+            ),
+        ),
+        recent_execution_fills=(
+            DashboardExecutionFill(
+                execution_fill_id="fill-1",
+                intent_id="intent-1",
+                execution_order_id="order-1",
+                pair="BTC/USDT",
+                side=PositionSide.LONG,
+                quantity=Decimal("0.05"),
+                price=Decimal("100.00"),
+                fee_asset="USDT",
+                fee_amount=Decimal("0.01"),
+                filled_at=NOW,
+            ),
+        ),
+        recent_execution_events=(
+            DashboardExecutionEvent(
+                event_id=1,
+                intent_id="intent-1",
+                event_type=ExecutionEventType.RECONCILED,
+                state=ExecutionState.RECONCILED,
+                message=f"reconciliation clear for {REDACTION_VALUE}",
+                raw_status_code="RECONCILIATION_CLEAR",
+                metadata_json='{"issue_codes":[],"mismatch_count":0,"trading_halted":false}',
+                occurred_at=NOW,
+            ),
+        ),
     )
     report = PreflightReport(
         profile="paper",
@@ -72,24 +137,48 @@ def test_dashboard_snapshot_serializes_chart_ready_fixture_data() -> None:
 
     # When: a dashboard snapshot is built and converted to the API contract.
     snapshot = build_dashboard_snapshot(
-        settings=RuntimeSettings(),
+        settings=RuntimeSettings.model_validate({"exchange": {"api_secret": REDACTION_VALUE}}),
         bot_state=BotState.RUNNING,
         readiness=report,
         logs=(_log(LogLevel.ERROR, "CONFIG_VALIDATION_ERROR"), _log(LogLevel.INFO, "API_STARTED")),
         read_models=read_models,
     )
-    payload = DashboardSnapshotResponse.from_snapshot(snapshot).model_dump(mode="json")
+    response = DashboardSnapshotResponse.from_snapshot(snapshot)
+    payload = response.model_dump(mode="json")
 
     # Then: chart arrays and user-visible status are deterministic.
     assert payload["bot_state"] == "running"
     assert payload["readiness"]["blocked"] is True
     assert payload["readiness"]["checks"][0]["code"] == "CONFIG_VALID"
-    assert payload["equity_points"][0]["at"] == "2026-01-01T00:00:00Z"
+    assert payload["equity_points"][0]["at"] == _datetime_json(NOW)
     assert payload["equity_points"][0]["equity"] == "1000.10"
     assert payload["price_points"][0]["price"] == "101.25"
     assert payload["open_positions"][0]["leverage"] == "2"
     assert payload["recent_trades"][0]["profit"] == "1.23"
+    assert payload["closed_trade_summary"] == {
+        "closed_trades": 1,
+        "wins": 1,
+        "losses": 0,
+        "profit": "1.23",
+    }
     assert payload["recent_errors"][0]["code"] == "CONFIG_VALIDATION_ERROR"
+    assert payload["account_truth"]["balance"]["equity"] == "1000.10"
+    assert payload["account_truth"]["pnl"]["open_profit"] == "0.2500"
+    assert payload["account_truth"]["pnl"]["closed_profit"] == "1.23"
+    assert payload["account_truth"]["pnl"]["wins"] == 1
+    assert payload["account_truth"]["exposure"]["partial_fills"] == 1
+    assert payload["account_truth"]["reconciliation"]["status"] == "clear"
+    assert payload["execution_intents"][0]["state"] == "submitted"
+    assert payload["open_execution_orders"][0]["filled_quantity"] == "0.05"
+    assert payload["recent_execution_fills"][0]["fee_amount"] == "0.01"
+    assert payload["recent_execution_events"][0]["message"] == "reconciliation clear for REDACTED"
+    assert REDACTION_VALUE not in response.model_dump_json()
+    assert tuple(signal.code for signal in response.execution_signals) == (
+        EXPECTED_EXECUTION_SIGNAL_CODES
+    )
+    assert response.execution_signals[0].title == "Order lifecycle"
+    assert response.execution_signals[0].status == "pass"
+    assert response.execution_signals[1].status == "pass"
 
 
 def test_dashboard_snapshot_returns_valid_empty_arrays_when_datasets_are_empty() -> None:
@@ -113,9 +202,57 @@ def test_dashboard_snapshot_returns_valid_empty_arrays_when_datasets_are_empty()
     assert payload["price_points"] == []
     assert payload["open_positions"] == []
     assert payload["recent_trades"] == []
+    assert payload["closed_trade_summary"] == {
+        "closed_trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "profit": "0",
+    }
     assert payload["recent_errors"] == []
+    assert payload["account_truth"]["balance"]["stale"] is True
+    assert payload["account_truth"]["pnl"]["open_profit"] == "0"
+    assert payload["account_truth"]["reconciliation"]["status"] == "missing"
+    assert payload["execution_intents"] == []
+    assert payload["recent_execution_events"] == []
     assert payload["pairlist"]["total"] == 8
     assert payload["pairlist"]["preview"][0] == "BTC/USDT:USDT"
+    assert len(DashboardSnapshotResponse.from_snapshot(snapshot).execution_signals) == len(
+        EXPECTED_EXECUTION_SIGNAL_CODES,
+    )
+
+
+def test_dashboard_snapshot_blocks_reconciliation_when_metadata_is_invalid() -> None:
+    # Given: reconciliation says clear but carries malformed metadata.
+    read_models = DashboardReadModels(
+        recent_execution_events=(
+            DashboardExecutionEvent(
+                event_id=1,
+                intent_id="intent-1",
+                event_type=ExecutionEventType.RECONCILED,
+                state=ExecutionState.RECONCILED,
+                message="reconciliation clear",
+                raw_status_code="RECONCILIATION_CLEAR",
+                metadata_json="{not-json",
+                occurred_at=NOW,
+            ),
+        ),
+    )
+    report = PreflightReport(profile="paper", blocked=False, checks=())
+
+    # When: the dashboard snapshot is built.
+    snapshot = build_dashboard_snapshot(
+        settings=RuntimeSettings(),
+        bot_state=BotState.STOPPED,
+        readiness=report,
+        logs=(),
+        read_models=read_models,
+    )
+    reconciliation = DashboardSnapshotResponse.from_snapshot(snapshot).account_truth.reconciliation
+
+    # Then: malformed reconciliation evidence fails closed instead of reporting clear.
+    assert reconciliation.status == "blocked"
+    assert reconciliation.trading_halted is True
+    assert reconciliation.issue_codes == ("RECONCILIATION_METADATA_INVALID",)
 
 
 def test_dashboard_snapshot_serializes_prioritized_actions_for_blocked_error_state() -> None:
@@ -223,3 +360,7 @@ def _log(level: LogLevel, code: str) -> LogEntryResponse:
         safe_summary=code.lower(),
         report_hint="include support bundle",
     )
+
+
+def _datetime_json(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")

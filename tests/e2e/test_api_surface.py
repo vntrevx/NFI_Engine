@@ -23,17 +23,29 @@ from nfi_engine.api.models import (
 from nfi_engine.config.models import ApiSettings, RuntimeSettings
 from nfi_engine.dashboard.models import (
     DashboardEquityPoint,
+    DashboardExecutionEvent,
+    DashboardExecutionIntent,
     DashboardOpenPosition,
     DashboardReadModels,
     DashboardRecentTrade,
 )
 from nfi_engine.dashboard.store import StaticDashboardReadStore
 from nfi_engine.domain import PositionSide, TradeState
+from nfi_engine.execution import ExecutionEventType, ExecutionState
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
 LOCAL_BEARER = "local-test-bearer"
+REDACTION_VALUE = "dashboard-secret"
+EXPECTED_EXECUTION_SIGNAL_CODES = (
+    "order_lifecycle",
+    "reconciliation",
+    "idempotency",
+    "kill_switch",
+    "circuit_breakers",
+    "partial_fill_exposure",
+)
 
 
 @pytest.mark.anyio
@@ -72,7 +84,12 @@ async def test_api_surface_exposes_control_and_frontend_routes() -> None:
 @pytest.mark.anyio
 async def test_dashboard_snapshot_api_is_protected_and_chart_ready() -> None:
     # Given: a token-protected app with fixture dashboard read models.
-    api_settings = ApiSettings.model_validate({"auth_token": LOCAL_BEARER})
+    settings = RuntimeSettings.model_validate(
+        {
+            "api": {"auth_token": LOCAL_BEARER},
+            "exchange": {"api_secret": REDACTION_VALUE},
+        },
+    )
     read_store = StaticDashboardReadStore(
         DashboardReadModels(
             equity_points=(
@@ -82,16 +99,20 @@ async def test_dashboard_snapshot_api_is_protected_and_chart_ready() -> None:
                     available=Decimal("990.05"),
                 ),
             ),
+            execution_intents=tuple(_execution_intent(index) for index in range(25)),
+            recent_execution_events=(
+                _reconciliation_event(message=f"clear {REDACTION_VALUE}"),
+                *tuple(_execution_event(index) for index in range(54)),
+            ),
         ),
     )
-    client = _client(
-        create_app(settings=RuntimeSettings(api=api_settings), dashboard_store=read_store),
-    )
+    client = _client(create_app(settings=settings, dashboard_store=read_store))
     headers = {"Authorization": f"Bearer {LOCAL_BEARER}"}
 
     # When: unauthenticated and authenticated callers request the snapshot.
     unauthenticated = await client.get("/api/v1/dashboard/snapshot")
     response = await client.get("/api/v1/dashboard/snapshot", headers=headers)
+    write_attempt = await client.post("/api/v1/dashboard/snapshot", headers=headers)
     payload = DashboardSnapshotResponse.model_validate_json(response.content)
 
     # Then: the route is protected and emits deterministic chart-ready JSON.
@@ -101,6 +122,16 @@ async def test_dashboard_snapshot_api_is_protected_and_chart_ready() -> None:
     assert b'"at":"2026-01-01T00:00:00Z"' in response.content
     assert b'"equity":"1000.10"' in response.content
     assert payload.open_positions == ()
+    assert write_attempt.status_code == 405
+    assert payload.account_truth.balance.equity == "1000.10"
+    assert payload.account_truth.reconciliation.status == "clear"
+    assert payload.recent_execution_events[0].message == "clear REDACTED"
+    assert REDACTION_VALUE.encode() not in response.content
+    assert len(payload.execution_intents) == 20
+    assert len(payload.recent_execution_events) == 50
+    assert tuple(signal.code for signal in payload.execution_signals) == (
+        EXPECTED_EXECUTION_SIGNAL_CODES
+    )
 
 
 @pytest.mark.anyio
@@ -147,6 +178,44 @@ async def test_operator_summary_endpoints_use_dashboard_read_models() -> None:
     )
     assert ProfitResponse.model_validate_json(profit_response.content).closed_trades == 1
     assert TradeListResponse.model_validate_json(trades_response.content).items == ("trade-1",)
+
+
+def _execution_intent(index: int) -> DashboardExecutionIntent:
+    return DashboardExecutionIntent(
+        intent_id=f"intent-{index}",
+        pair="BTC/USDT",
+        side=PositionSide.LONG,
+        state=ExecutionState.SUBMITTED,
+        requested_quantity=Decimal("0.10"),
+        requested_price=Decimal("100.00"),
+        updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+def _reconciliation_event(*, message: str) -> DashboardExecutionEvent:
+    return DashboardExecutionEvent(
+        event_id=1,
+        intent_id="intent-reconcile",
+        event_type=ExecutionEventType.RECONCILED,
+        state=ExecutionState.RECONCILED,
+        message=message,
+        raw_status_code="RECONCILIATION_CLEAR",
+        metadata_json='{"issue_codes":[],"mismatch_count":0,"trading_halted":false}',
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+def _execution_event(index: int) -> DashboardExecutionEvent:
+    return DashboardExecutionEvent(
+        event_id=index + 2,
+        intent_id=f"intent-{index}",
+        event_type=ExecutionEventType.ORDER_SUBMITTED,
+        state=ExecutionState.SUBMITTED,
+        message=f"submitted {index}",
+        raw_status_code="SUBMITTED",
+        metadata_json="{}",
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
 
 
 def _client(app: FastAPI) -> AsyncClient:
