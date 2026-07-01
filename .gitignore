@@ -11,6 +11,9 @@
 .ruff_cache/
 .runtime/
 .venv/
+.codex/
+.gjc/
+.omd/
 node_modules/
 __pycache__/
 test-results/
@@ -18,6 +21,7 @@ playwright-report/
 browser-traces/
 build/
 dist/
+src/nfi_engine/ui/react_dist/
 htmlcov/
 *.egg-info/
 *.py[cod]
@@ -27,6 +31,7 @@ htmlcov/
 *.har
 *.trace
 *.webm
+NUL
 support-bundle*.zip
 support-bundle*.tar
 support-bundle*.tar.gz

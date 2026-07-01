@@ -91,6 +91,15 @@ $EDITOR .runtime/secrets/testnet-bitget.env
 bash scripts/testnet_credential_probe.sh
 ```
 
+For the current owner-primary pilot lane, run only the Binance check:
+
+```bash
+bash scripts/testnet_credential_probe.sh --exchange binance
+```
+
+`--exchange bybit`, `--exchange okx`, and `--exchange bitget` are accepted for
+redacted user issue reports. They are not owner-primary validation lanes.
+
 The probe reads `.runtime/secrets/testnet-<exchange>.env` first and falls back
 to `.runtime/secrets/exchange-wallet.env` for older local setups. Empty
 templates stay `blocked-no-key`; the script never prints credential values.

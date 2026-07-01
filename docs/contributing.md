@@ -115,6 +115,11 @@ Docs should make the simplest safe path obvious:
 - Open `http://127.0.0.1:18080/`.
 - Use Settings for Simple Mode and write-only credential entry.
 - Use Logs for error codes, correlation IDs, and support report export.
+- Use the `Exchange test report` GitHub issue template for Binance-first
+  testnet checks and other exchange expansion reports. Paste only redacted
+  `runtime-check`, wallet balance, or `testnet-pilot` output.
+  `--exchange bybit`, `--exchange okx`, and `--exchange bitget` are issue
+  report inputs, not claims that those lanes are owner-primary validated.
 - Use `bash scripts/uninstall.sh --yes` for Safe Uninstall.
 - Use `bash scripts/uninstall.sh --purge --yes` only for Destructive Purge.
 - For public-facing docs and release wording, apply `docs/release-wording.md`:

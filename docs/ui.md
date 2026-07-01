@@ -1,19 +1,27 @@
 # Operator Console
 
-The milestone 1 console is a local FastAPI-served operator surface at
-`/settings` and `/logs`. It is built for simple configuration and diagnostics,
-not public analytics.
+The operator console is a local FastAPI-served React app for `/`, `/settings`,
+and `/logs`, with the existing Python SSR login page and no-bundle fallback kept
+intact. It is built for setup, paper/testnet operation, diagnostics, and local
+maintenance, not public analytics.
 
-Milestone 2 expands this into an original operator command center. The home
-surface should show setup readiness, safety state, dashboard snapshots, local
-chart status, recent errors, and support actions without imitating FreqUI.
+Build and type-check the frontend with:
+
+```bash
+npm run frontend:typecheck
+npm run frontend:build
+```
+
+The build output is generated under `src/nfi_engine/ui/react_dist/` and served
+from `/ui-react/...`; it is ignored by git.
 
 ## Home
 
 `/` is the first operator screen. It shows runtime state, exchange mode,
-open-trade and PnL placeholders, setup readiness, safety blocking reasons, a
-runtime health snapshot, wallet balance state, a pairlist preview, recent error
-codes, an operator cockpit, and a support report shortcut.
+backend-owned account truth for balance/open PnL/closed PnL/W/L/exposure,
+execution lifecycle, reconciliation status, runtime health, wallet balance
+state, pairlist preview, recent error codes, an operator cockpit, and a support
+report shortcut.
 
 First-run operators should be able to decide three things from Home without
 opening YAML:
@@ -34,14 +42,19 @@ it does not read browser storage or raw config dictionaries.
 Detailed runtime health is exposed through protected local JSON at
 `GET /api/v1/runtime/health`. It reports one operator state:
 `healthy`, `degraded`, or `blocked`, with a next action and typed checks for
-heartbeat, preflight, wallet balance, stale dashboard data, manual halt,
-disk budget, and memory budget.
+heartbeat, preflight, database readability/writability, wallet balance, wallet
+freshness, stale dashboard data, reconciliation age, exchange API error counters,
+manual halt/circuit-breaker state, disk budget, and memory budget.
 
 Wallet balance reads stay behind the exchange adapter boundary. Settings uses
 an explicit operator action, `POST /api/v1/wallet/balance/fetch`, and Home only
 renders the latest typed wallet state. The UI does not fetch wallet balance on
 page load, does not run a wallet polling timer, and does not store wallet data,
 API keys, bearer tokens, or CSRF tokens in browser storage.
+
+The current React shell keeps the Python-rendered operator HTML as a `<noscript>`
+fallback. This is an accessibility and smoke-test contract, not a second source
+of truth; protected API/read-model services remain authoritative.
 
 ## Runtime Controls
 
@@ -95,16 +108,15 @@ from browser locale. Machine codes, audit event IDs, and API contract tokens
 remain untranslated so support reports stay searchable.
 
 When the operator changes `ui.locale` in Settings and presses Apply, the page
-uses the runtime-safe config API and reloads itself. The operator should not
-need to press F5 manually.
+uses the runtime-safe config API and updates the active React locale plus
+`<html lang>` immediately. The operator should not need to press F5 manually.
 
 ## Dashboard Chart
 
-The home chart is a local canvas renderer with no external chart library. It
-polls `GET /api/v1/dashboard/snapshot` every 5 seconds, aborts a refresh after
-2.5 seconds, and marks the chart stale after 15 seconds without a successful
-snapshot. The footer reports render time and response payload bytes so local QA
-can catch wasteful polling or payload growth early.
+The home equity tape is a local CSS renderer with no external chart library. It
+reads `GET /api/v1/dashboard/snapshot` on page load and renders compact equity,
+position, PnL, exposure, wallet, and runtime state. Continuous polling is not
+required for the default operator console.
 
 Expected states:
 
@@ -114,6 +126,22 @@ Expected states:
 - `stale`: previous data exists but refreshes are no longer current
 - `error`: no usable snapshot could be rendered
 
+## Execution Safety Signals
+
+The repeated-operation dashboard must show the order lane as a safety surface,
+not only as a chart. The testnet pilot contract exposes the required dashboard
+signals:
+
+- `order_lifecycle`: latest order state from intent through reconciliation
+- `reconciliation`: local state compared with exchange/account truth
+- `idempotency`: stable client order id available for retry-safe submission
+- `kill_switch`: manual halt and authenticated stop state
+- `circuit_breakers`: loss, stale data, API error, rejection, and exposure gates
+- `partial_fill_exposure`: remaining quantity and exposure after partial fills
+
+Until the canary/restricted live gates are separately approved, these signals
+stay diagnostic. They must not imply real-money live readiness.
+
 ## Settings
 
 `/settings` renders editable fields from config metadata, hides sensitive
@@ -122,11 +150,11 @@ Runtime-safe fields can be validated, saved as a draft, and applied without
 editing raw YAML.
 
 The first-run setup wizard is the default operator path. It renders this order:
-exchange, exchange API key, exchange API secret, API permission audit,
-recommended leverage `3x`, wallet balance fetch button/state, allocated amount,
-futures/spot, and dry-run/live. Dry-run is selected by default. Live remains
-visibly gated and setup preview returns `LIVE_TRADING_REQUIRES_CONFIRMATION`
-until the explicit live confirmation path exists.
+exchange, exchange API key, exchange API secret, recommended leverage `3x`,
+wallet balance fetch button/state, allocated amount, futures/spot, and
+dry-run/live. Dry-run is selected by default. Live remains visibly gated and
+setup preview includes `LIVE_TRADING_REQUIRES_CONFIRMATION` until the explicit
+live confirmation path exists.
 
 The API permission audit uses short operator labels for read, trade, futures,
 withdrawal, and IP allowlist status. Withdrawal-like permission blocks live
