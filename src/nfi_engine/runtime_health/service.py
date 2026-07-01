@@ -1,27 +1,44 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import assert_never
 
 from nfi_engine.config import RuntimeSettings
 from nfi_engine.dashboard import DashboardReadModels
 from nfi_engine.paper import BotState
 from nfi_engine.preflight.models import PreflightReport
+from nfi_engine.runtime_health.checks import (
+    database_check,
+    heartbeat_check,
+    manual_halt_check,
+    next_action,
+    overall_state,
+    preflight_check,
+    resource_check,
+    wallet_check,
+)
+from nfi_engine.runtime_health.database import collect_database_snapshot
 from nfi_engine.runtime_health.freshness import latest_dashboard_at
+from nfi_engine.runtime_health.freshness_checks import (
+    data_freshness_check,
+    exchange_api_error_check,
+    reconciliation_age_check,
+    wallet_freshness_check,
+)
+from nfi_engine.runtime_health.live_pilot import (
+    evaluate_restricted_live_pilot,
+    live_pilot_health_check,
+)
 from nfi_engine.runtime_health.models import (
-    RuntimeHealthCheck,
+    RuntimeDatabaseSnapshot,
     RuntimeHealthCode,
     RuntimeHealthSnapshot,
-    RuntimeHealthState,
     RuntimeResourceSnapshot,
 )
 from nfi_engine.runtime_health.resources import collect_runtime_resources
 from nfi_engine.strategy.nfi_x7 import build_x7_semantic_status
-from nfi_engine.wallet import WalletBalanceSnapshot, WalletBalanceStatus
-
-CLOCK_SKEW_GRACE_SECONDS = 60
+from nfi_engine.wallet import WalletBalanceSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +50,8 @@ class RuntimeHealthRequest:
     wallet_balance: WalletBalanceSnapshot
     now: datetime | None = None
     resources: RuntimeResourceSnapshot | None = None
+    database: RuntimeDatabaseSnapshot | None = None
+    exchange_api_errors: int = 0
 
 
 def build_runtime_health_snapshot(request: RuntimeHealthRequest) -> RuntimeHealthSnapshot:
@@ -42,36 +61,63 @@ def build_runtime_health_snapshot(request: RuntimeHealthRequest) -> RuntimeHealt
         if request.resources is not None
         else collect_runtime_resources(path=_resource_path(request.settings), now=generated_at)
     )
+    database_snapshot = (
+        request.database
+        if request.database is not None
+        else collect_database_snapshot(
+            database_url=request.settings.database.url,
+            now=generated_at,
+        )
+    )
     checks = (
-        _heartbeat_check(request.bot_state),
-        _preflight_check(request.readiness),
-        _wallet_check(request.wallet_balance),
-        _freshness_check(
+        heartbeat_check(request.bot_state),
+        preflight_check(request.readiness),
+        database_check(database_snapshot),
+        wallet_check(request.wallet_balance),
+        wallet_freshness_check(
+            settings=request.settings,
+            wallet=request.wallet_balance,
+            generated_at=generated_at,
+        ),
+        data_freshness_check(
             settings=request.settings,
             read_models=request.read_models,
             generated_at=generated_at,
         ),
-        _manual_halt_check(request.settings),
-        _resource_check(
+        reconciliation_age_check(
+            settings=request.settings,
+            read_models=request.read_models,
+            generated_at=generated_at,
+        ),
+        exchange_api_error_check(
+            settings=request.settings,
+            error_count=request.exchange_api_errors,
+        ),
+        manual_halt_check(request.settings),
+        live_pilot_health_check(
+            evaluate_restricted_live_pilot(settings=request.settings, now=generated_at),
+        ),
+        resource_check(
             code=RuntimeHealthCode.DISK_BUDGET,
             state=resource_snapshot.disk_state,
             message=f"free_disk_bytes={resource_snapshot.free_disk_bytes}",
             blocked_action="Free disk space before starting a run.",
         ),
-        _resource_check(
+        resource_check(
             code=RuntimeHealthCode.MEMORY_BUDGET,
             state=resource_snapshot.memory_state,
             message=f"memory_rss_bytes={resource_snapshot.memory_rss_bytes}",
             blocked_action="Review memory use before running on Raspberry Pi 4.",
         ),
     )
-    state = _overall_state(checks)
+    state = overall_state(checks)
     return RuntimeHealthSnapshot(
         generated_at=generated_at,
         state=state,
-        next_action=_next_action(checks, state),
+        next_action=next_action(checks, state),
         checks=checks,
         resources=resource_snapshot,
+        database=database_snapshot,
         wallet_balance=request.wallet_balance,
         x7_semantic_status=build_x7_semantic_status(
             settings=request.settings,
@@ -79,165 +125,6 @@ def build_runtime_health_snapshot(request: RuntimeHealthRequest) -> RuntimeHealt
             dashboard_data_observed=latest_dashboard_at(request.read_models) is not None,
         ),
     )
-
-
-def _heartbeat_check(bot_state: BotState) -> RuntimeHealthCheck:
-    return RuntimeHealthCheck(
-        code=RuntimeHealthCode.ENGINE_HEARTBEAT,
-        state=RuntimeHealthState.HEALTHY,
-        message=f"bot_state={bot_state.value}",
-        next_action="No heartbeat action required.",
-    )
-
-
-def _preflight_check(readiness: PreflightReport | None) -> RuntimeHealthCheck:
-    if readiness is None:
-        return RuntimeHealthCheck(
-            code=RuntimeHealthCode.PREFLIGHT,
-            state=RuntimeHealthState.DEGRADED,
-            message="preflight report is not loaded",
-            next_action="Run preflight before starting a run.",
-        )
-    if readiness.blocked:
-        return RuntimeHealthCheck(
-            code=RuntimeHealthCode.PREFLIGHT,
-            state=RuntimeHealthState.BLOCKED,
-            message="preflight is blocking startup",
-            next_action="Open Settings and fix blocked preflight checks.",
-        )
-    return RuntimeHealthCheck(
-        code=RuntimeHealthCode.PREFLIGHT,
-        state=RuntimeHealthState.HEALTHY,
-        message="preflight checks are not blocking startup",
-        next_action="No preflight action required.",
-    )
-
-
-def _wallet_check(wallet: WalletBalanceSnapshot) -> RuntimeHealthCheck:
-    match wallet.status:
-        case WalletBalanceStatus.FETCHED:
-            state = RuntimeHealthState.HEALTHY
-        case WalletBalanceStatus.BLOCKED:
-            state = RuntimeHealthState.BLOCKED
-        case WalletBalanceStatus.UNAVAILABLE | WalletBalanceStatus.ERROR:
-            state = RuntimeHealthState.DEGRADED
-        case unreachable:
-            assert_never(unreachable)
-    return RuntimeHealthCheck(
-        code=RuntimeHealthCode.WALLET_BALANCE,
-        state=state,
-        message=wallet.code.value,
-        next_action=wallet.next_action,
-    )
-
-
-def _freshness_check(
-    *,
-    settings: RuntimeSettings,
-    read_models: DashboardReadModels,
-    generated_at: datetime,
-) -> RuntimeHealthCheck:
-    latest_at = latest_dashboard_at(read_models)
-    if latest_at is None:
-        return RuntimeHealthCheck(
-            code=RuntimeHealthCode.DATA_FRESHNESS,
-            state=RuntimeHealthState.DEGRADED,
-            message="no dashboard data has been recorded yet",
-            next_action="Run paper/testnet once to seed dashboard health data.",
-        )
-    if latest_at > generated_at + timedelta(seconds=CLOCK_SKEW_GRACE_SECONDS):
-        return RuntimeHealthCheck(
-            code=RuntimeHealthCode.CLOCK_SKEW,
-            state=RuntimeHealthState.BLOCKED,
-            message=f"latest_runtime_at={latest_at.isoformat()}",
-            next_action="Fix system clock skew before starting a run.",
-        )
-    stale_after = timedelta(seconds=settings.circuit_breakers.max_stale_seconds)
-    if generated_at - latest_at > stale_after:
-        return RuntimeHealthCheck(
-            code=RuntimeHealthCode.DATA_FRESHNESS,
-            state=RuntimeHealthState.BLOCKED,
-            message=f"latest_runtime_at={latest_at.isoformat()}",
-            next_action="Refresh market data before starting a run.",
-        )
-    return RuntimeHealthCheck(
-        code=RuntimeHealthCode.DATA_FRESHNESS,
-        state=RuntimeHealthState.HEALTHY,
-        message=f"latest_runtime_at={latest_at.isoformat()}",
-        next_action="No data freshness action required.",
-    )
-
-
-def _manual_halt_check(settings: RuntimeSettings) -> RuntimeHealthCheck:
-    if _manual_halt_active(settings):
-        return RuntimeHealthCheck(
-            code=RuntimeHealthCode.CIRCUIT_BREAKER_STATE,
-            state=RuntimeHealthState.BLOCKED,
-            message="manual halt is enabled",
-            next_action="Disable manual halt only after reviewing the reason.",
-        )
-    return RuntimeHealthCheck(
-        code=RuntimeHealthCode.CIRCUIT_BREAKER_STATE,
-        state=RuntimeHealthState.HEALTHY,
-        message="manual halt is disabled",
-        next_action="No circuit-breaker action required.",
-    )
-
-
-def _manual_halt_active(settings: RuntimeSettings) -> bool:
-    circuit_breakers = settings.circuit_breakers
-    return circuit_breakers.manual_halt or _manual_halt_file_exists(
-        circuit_breakers.manual_halt_file
-    )
-
-
-def _manual_halt_file_exists(raw_path: str | None) -> bool:
-    if raw_path is None:
-        return False
-    path = raw_path.strip()
-    if path == "":
-        return False
-    return Path(path).exists()
-
-
-def _resource_check(
-    *,
-    code: RuntimeHealthCode,
-    state: RuntimeHealthState,
-    message: str,
-    blocked_action: str,
-) -> RuntimeHealthCheck:
-    if state is RuntimeHealthState.HEALTHY:
-        return RuntimeHealthCheck(
-            code=code,
-            state=state,
-            message=message,
-            next_action="No resource action required.",
-        )
-    return RuntimeHealthCheck(
-        code=code,
-        state=state,
-        message=message,
-        next_action=blocked_action,
-    )
-
-
-def _overall_state(checks: tuple[RuntimeHealthCheck, ...]) -> RuntimeHealthState:
-    if any(check.state is RuntimeHealthState.BLOCKED for check in checks):
-        return RuntimeHealthState.BLOCKED
-    if any(check.state is RuntimeHealthState.DEGRADED for check in checks):
-        return RuntimeHealthState.DEGRADED
-    return RuntimeHealthState.HEALTHY
-
-
-def _next_action(
-    checks: tuple[RuntimeHealthCheck, ...],
-    state: RuntimeHealthState,
-) -> str:
-    for check in checks:
-        if check.state is state and state is not RuntimeHealthState.HEALTHY:
-            return check.next_action
-    return "Runtime health is ready for paper/testnet operation."
 
 
 def _resource_path(settings: RuntimeSettings) -> Path:

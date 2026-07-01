@@ -5,10 +5,16 @@ from decimal import Decimal
 from pathlib import Path
 
 from nfi_engine.config.models import CircuitBreakerSettings, RuntimeSettings
-from nfi_engine.dashboard import DashboardEquityPoint, DashboardReadModels
+from nfi_engine.dashboard import (
+    DashboardEquityPoint,
+    DashboardExecutionEvent,
+    DashboardReadModels,
+)
+from nfi_engine.execution import ExecutionEventType, ExecutionState
 from nfi_engine.paper import BotState
 from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.runtime_health import (
+    RuntimeDatabaseSnapshot,
     RuntimeHealthCode,
     RuntimeHealthRequest,
     RuntimeHealthSnapshot,
@@ -32,6 +38,7 @@ def test_runtime_health_is_healthy_for_fresh_data_and_fetched_wallet() -> None:
             wallet_balance=_wallet(WalletBalanceStatus.FETCHED),
             now=NOW,
             resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.HEALTHY),
         ),
     )
 
@@ -52,6 +59,7 @@ def test_runtime_health_blocks_stale_runtime_data() -> None:
             wallet_balance=_wallet(WalletBalanceStatus.FETCHED),
             now=NOW,
             resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.HEALTHY),
         ),
     )
 
@@ -71,6 +79,7 @@ def test_runtime_health_blocks_future_clock_skew() -> None:
             wallet_balance=_wallet(WalletBalanceStatus.FETCHED),
             now=NOW,
             resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.HEALTHY),
         ),
     )
 
@@ -90,6 +99,7 @@ def test_runtime_health_degrades_when_wallet_adapter_is_unavailable() -> None:
             wallet_balance=_wallet(WalletBalanceStatus.UNAVAILABLE),
             now=NOW,
             resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.HEALTHY),
         ),
     )
 
@@ -114,6 +124,7 @@ def test_runtime_health_blocks_manual_halt_file(tmp_path: Path) -> None:
             wallet_balance=_wallet(WalletBalanceStatus.FETCHED),
             now=NOW,
             resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.HEALTHY),
         ),
     )
 
@@ -125,19 +136,101 @@ def test_runtime_health_blocks_manual_halt_file(tmp_path: Path) -> None:
     )
 
 
-def _read_models(at: datetime) -> DashboardReadModels:
-    return DashboardReadModels(
-        equity_points=(DashboardEquityPoint(at=at, equity=Decimal(1000), available=Decimal(900)),),
+def test_runtime_health_blocks_stale_wallet_snapshot() -> None:
+    snapshot = build_runtime_health_snapshot(
+        RuntimeHealthRequest(
+            settings=RuntimeSettings(),
+            bot_state=BotState.RUNNING,
+            readiness=PreflightReport(profile="paper", blocked=False, checks=()),
+            read_models=_read_models(NOW),
+            wallet_balance=_wallet(
+                WalletBalanceStatus.FETCHED,
+                captured_at=NOW - timedelta(seconds=400),
+            ),
+            now=NOW,
+            resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.HEALTHY),
+        ),
+    )
+
+    assert snapshot.state is RuntimeHealthState.BLOCKED
+    assert _check_state(snapshot, RuntimeHealthCode.WALLET_FRESHNESS) is RuntimeHealthState.BLOCKED
+
+
+def test_runtime_health_blocks_database_without_write_access() -> None:
+    snapshot = build_runtime_health_snapshot(
+        RuntimeHealthRequest(
+            settings=RuntimeSettings(),
+            bot_state=BotState.RUNNING,
+            readiness=PreflightReport(profile="paper", blocked=False, checks=()),
+            read_models=_read_models(NOW),
+            wallet_balance=_wallet(WalletBalanceStatus.FETCHED),
+            now=NOW,
+            resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.BLOCKED, writable=False),
+        ),
+    )
+
+    assert snapshot.state is RuntimeHealthState.BLOCKED
+    assert _check_state(snapshot, RuntimeHealthCode.DATABASE) is RuntimeHealthState.BLOCKED
+
+
+def test_runtime_health_blocks_high_exchange_api_error_count() -> None:
+    snapshot = build_runtime_health_snapshot(
+        RuntimeHealthRequest(
+            settings=RuntimeSettings(),
+            bot_state=BotState.RUNNING,
+            readiness=PreflightReport(profile="paper", blocked=False, checks=()),
+            read_models=_read_models(NOW),
+            wallet_balance=_wallet(WalletBalanceStatus.FETCHED),
+            now=NOW,
+            resources=_resources(RuntimeHealthState.HEALTHY, RuntimeHealthState.HEALTHY),
+            database=_database(RuntimeHealthState.HEALTHY),
+            exchange_api_errors=5,
+        ),
+    )
+
+    assert snapshot.state is RuntimeHealthState.BLOCKED
+    assert (
+        _check_state(snapshot, RuntimeHealthCode.EXCHANGE_API_ERRORS) is RuntimeHealthState.BLOCKED
     )
 
 
-def _wallet(status: WalletBalanceStatus) -> WalletBalanceSnapshot:
+def _read_models(at: datetime) -> DashboardReadModels:
+    return DashboardReadModels(
+        equity_points=(DashboardEquityPoint(at=at, equity=Decimal(1000), available=Decimal(900)),),
+        recent_execution_events=(
+            DashboardExecutionEvent(
+                event_id=1,
+                intent_id="intent-1",
+                event_type=ExecutionEventType.RECONCILED,
+                state=ExecutionState.RECONCILED,
+                message="reconciliation clear",
+                raw_status_code="RECONCILIATION_CLEAR",
+                metadata_json='{"issue_codes":[],"mismatch_count":0,"trading_halted":false}',
+                occurred_at=at,
+            ),
+        ),
+    )
+
+
+def _wallet(
+    status: WalletBalanceStatus,
+    *,
+    captured_at: datetime | None = None,
+) -> WalletBalanceSnapshot:
     return WalletBalanceSnapshot(
         status=status,
         code=_wallet_code(status),
         exchange="simulator",
         trading_mode="spot",
-        captured_at=NOW if status is WalletBalanceStatus.FETCHED else None,
+        captured_at=(
+            captured_at
+            if captured_at is not None
+            else NOW
+            if status is WalletBalanceStatus.FETCHED
+            else None
+        ),
         equity=Decimal(1000) if status is WalletBalanceStatus.FETCHED else None,
         available=Decimal(900) if status is WalletBalanceStatus.FETCHED else None,
         quote_asset="USDT",
@@ -163,6 +256,21 @@ def _resources(
         memory_rss_bytes=128 * 1024 * 1024,
         disk_state=disk_state,
         memory_state=memory_state,
+    )
+
+
+def _database(
+    state: RuntimeHealthState,
+    *,
+    readable: bool = True,
+    writable: bool = True,
+) -> RuntimeDatabaseSnapshot:
+    return RuntimeDatabaseSnapshot(
+        captured_at=NOW,
+        readable=readable,
+        writable=writable,
+        state=state,
+        message="database_path=test",
     )
 
 
