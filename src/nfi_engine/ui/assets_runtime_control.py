@@ -31,10 +31,21 @@ async function runtimeJson(response) {
 }
 function runtimeErrorText(response, payload) {
   if (payload.detail?.code) {
-    const fallback = runtimeMsg('settings.runtime_control_blocked');
-    return `${payload.detail.code}: ${payload.detail.message || fallback}`;
+    return runtimeMsg('settings.runtime_control_blocked');
   }
   return `HTTP ${response.status}`;
+}
+function runtimeHealthLabel(state) {
+  if (state === 'healthy') {
+    return runtimeMsg('common.ready');
+  }
+  if (state === 'degraded') {
+    return runtimeMsg('common.warning');
+  }
+  if (state === 'blocked') {
+    return runtimeMsg('common.blocked');
+  }
+  return state || runtimeMsg('settings.runtime_control_blocked');
 }
 function applyRuntimeControlPayload(payload) {
   setText(runtimeControlStates, payload.state || runtimeMsg('settings.runtime_control_blocked'));
@@ -58,8 +69,7 @@ async function refreshRuntimeHealth() {
     setText(runtimeHealthStates, runtimeErrorText(response, payload));
     return;
   }
-  const detail = payload.next_action ? `${payload.state}: ${payload.next_action}` : payload.state;
-  setText(runtimeHealthStates, detail);
+  setText(runtimeHealthStates, runtimeHealthLabel(payload.state));
 }
 async function sendRuntimeCommand(command) {
   setText(runtimeControlStates, runtimeMsg('settings.runtime_control_loading'));

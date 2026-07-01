@@ -3,13 +3,42 @@ from __future__ import annotations
 from typing import Final
 
 OPERATIONS_STYLE: Final = """
-.cockpit { grid-column: span 1; }
+.cockpit {
+  grid-column: span 1;
+  border-color: var(--line-strong);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .92), rgb(249 251 250 / .98)),
+    var(--panel);
+}
 .cockpit-grid, .update-state-grid, .x7-status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
-.cockpit-item[data-testid="cockpit-latest-error"] { grid-column: 1 / -1; }
+main[data-testid="home-root"] .cockpit-item {
+  min-height: 76px;
+  background:
+    linear-gradient(180deg, var(--panel), var(--panel-subtle));
+  border-color: var(--line-strong);
+}
+main[data-testid="home-root"] .cockpit-item strong {
+  font-size: 14px;
+}
+.cockpit-item[data-testid="cockpit-latest-error"] {
+  grid-column: 1 / -1;
+  border-left: 3px solid var(--danger);
+}
+.cockpit-item[data-testid="cockpit-next-action"] {
+  grid-column: 1 / -1;
+  border-left: 3px solid var(--accent);
+}
+main[data-testid="home-root"] section[data-testid="action-queue"] ul,
+main[data-testid="home-root"] section[data-testid="recent-errors"] ul,
+main[data-testid="home-root"] section[data-testid="setup-doctor"] ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .action-error, .action-warning, .action-info {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -103,6 +132,98 @@ td { font-size: 13px; overflow-wrap: anywhere; }
 .login-brand strong { font-size: 12px; }
 .login-form { display: grid; gap: 9px; margin-top: 18px; }
 .login-form button { justify-content: center; margin-top: 4px; }
+main[data-testid="home-root"] .cockpit {
+  border-color: var(--home-line-strong);
+  background:
+    linear-gradient(180deg, rgb(94 161 255 / .055), transparent 32%),
+    var(--home-panel);
+}
+main[data-testid="home-root"] .cockpit-grid,
+main[data-testid="home-root"] .update-state-grid,
+main[data-testid="home-root"] .x7-status-grid {
+  gap: 5px;
+}
+main[data-testid="home-root"] .cockpit-item {
+  min-height: 62px;
+  border-color: var(--home-line);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .022), transparent),
+    var(--home-panel-raised);
+}
+main[data-testid="home-root"] .cockpit-item[data-testid="cockpit-latest-error"] {
+  border-left-color: var(--home-negative);
+}
+main[data-testid="home-root"] .cockpit-item[data-testid="cockpit-next-action"] {
+  border-left-color: var(--home-positive);
+}
+main[data-testid="home-root"] section[data-testid="runtime-controls"] {
+  display: grid;
+  gap: 0;
+}
+main[data-testid="home-root"] section[data-testid="runtime-controls"] .toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+main[data-testid="home-root"] section[data-testid="action-queue"] ul,
+main[data-testid="home-root"] section[data-testid="recent-errors"] ul,
+main[data-testid="home-root"] section[data-testid="setup-doctor"] ul {
+  display: grid;
+  gap: 0;
+}
+main[data-testid="home-root"] .action-error,
+main[data-testid="home-root"] .action-warning,
+main[data-testid="home-root"] .action-info {
+  min-height: 44px;
+  padding: 8px 0 8px 9px;
+  border-bottom-color: var(--home-line);
+}
+main[data-testid="home-root"] .action-error { border-left-color: var(--home-negative); }
+main[data-testid="home-root"] .action-warning { border-left-color: var(--home-warn); }
+main[data-testid="home-root"] .action-info { border-left-color: var(--home-positive); }
+main[data-testid="home-root"] .action-error strong,
+main[data-testid="home-root"] .action-warning strong,
+main[data-testid="home-root"] .action-info strong {
+  color: var(--home-text);
+}
+main[data-testid="home-root"] .action-error span,
+main[data-testid="home-root"] .action-warning span,
+main[data-testid="home-root"] .action-info span {
+  color: var(--home-muted);
+}
+main[data-testid="home-root"] .action-error a,
+main[data-testid="home-root"] .action-warning a,
+main[data-testid="home-root"] .action-info a {
+  color: var(--home-positive);
+}
+main[data-testid="home-root"] .x7-status-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 8px;
+}
+main[data-testid="home-root"] .execution-safety .signal-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+main[data-testid="home-root"] .signal-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 44px;
+  padding: 8px 9px;
+  border-color: var(--home-line);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .022), transparent),
+    var(--home-panel-raised);
+}
+main[data-testid="home-root"] .signal-list strong {
+  color: var(--home-ivory);
+}
+main[data-testid="home-root"] .signal-list span {
+  color: var(--home-muted);
+  text-align: right;
+  white-space: nowrap;
+}
 @media (max-width: 780px) {
   main { padding: 16px; }
   header, .workspace { display: block; }
@@ -123,6 +244,51 @@ td { font-size: 13px; overflow-wrap: anywhere; }
   .action-error a, .action-warning a, .action-info a {
     grid-column: 1;
     grid-row: auto;
+  }
+}
+@media (max-width: 1180px) {
+  main[data-testid="home-root"] .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  main[data-testid="home-root"] .x7-status-grid,
+  main[data-testid="home-root"] .execution-safety .signal-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 780px) {
+  main[data-testid="home-root"] {
+    padding: 7px;
+  }
+  main[data-testid="home-root"] > header {
+    display: grid;
+    gap: 8px;
+  }
+  main[data-testid="home-root"] nav {
+    margin-top: 0;
+  }
+  main[data-testid="home-root"] section {
+    margin-top: 0;
+  }
+  main[data-testid="home-root"] .status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  main[data-testid="home-root"] .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  main[data-testid="home-root"] .overview-cell[data-testid="overview-pnl"] {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  main[data-testid="home-root"] .overview-cell[data-testid="overview-risk"] {
+    grid-column: 1 / -1;
+  }
+  main[data-testid="home-root"] .overview-split {
+    grid-template-columns: 1fr;
+  }
+  main[data-testid="home-root"] section[data-testid="runtime-controls"] .toolbar,
+  main[data-testid="home-root"] .x7-status-grid,
+  main[data-testid="home-root"] .execution-safety .signal-list {
+    grid-template-columns: 1fr;
   }
 }
 """

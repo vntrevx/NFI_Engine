@@ -74,7 +74,7 @@ def render_settings_body(
         content=update_panel,
     )
     return f"""
-<main data-testid="settings-root">
+<main data-testid="settings-root" data-config-current-endpoint="/api/v1/config/current">
   <header>
     <div>
       <h1>NFI Engine</h1>

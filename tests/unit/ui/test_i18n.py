@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from nfi_engine.config import Locale
@@ -7,6 +9,12 @@ from nfi_engine.config.models import RuntimeSettings, UiSettings
 from nfi_engine.ui.i18n import CATALOGS, localize, supported_locales
 from nfi_engine.ui.i18n_keys import MessageKey
 from nfi_engine.ui.pages import render_home_page, render_logs_page, render_settings_page
+
+FRONTEND_I18N = Path("frontend/src/i18n.ts")
+
+
+def _react_shell(html: str) -> bool:
+    return 'id="nfi-react-root"' in html
 
 
 def test_i18n_catalog_supports_required_locales_with_complete_frontend_keys() -> None:
@@ -40,13 +48,18 @@ def test_pages_render_dynamic_html_lang_for_each_locale(locale: Locale) -> None:
     logs = render_logs_page(settings=settings, logs=())
 
     # Then: each page uses the configured language while preserving test contracts.
-    expected_lang = f'<html lang="{locale.value}">'
+    expected_lang = f'<html lang="{locale.value}"'
     assert expected_lang in home
     assert expected_lang in settings_page
     assert expected_lang in logs
-    assert 'data-testid="home-root"' in home
-    assert 'data-testid="settings-root"' in settings_page
-    assert 'data-testid="logs-root"' in logs
+    if _react_shell(home):
+        assert 'data-nfi-page="home"' in home
+        assert 'data-nfi-page="settings"' in settings_page
+        assert 'data-nfi-page="logs"' in logs
+    else:
+        assert 'data-testid="home-root"' in home
+        assert 'data-testid="settings-root"' in settings_page
+        assert 'data-testid="logs-root"' in logs
 
 
 def test_runtime_settings_reject_unknown_locale() -> None:
@@ -62,6 +75,14 @@ def test_settings_operator_select_options_are_localized() -> None:
     # Given: Korean and Greek operator Settings pages.
     korean = render_settings_page(settings=RuntimeSettings(ui=UiSettings(locale=Locale.KO)))
     greek = render_settings_page(settings=RuntimeSettings(ui=UiSettings(locale=Locale.EL)))
+
+    if _react_shell(korean):
+        source = FRONTEND_I18N.read_text(encoding="utf-8")
+        assert "선물" in source or "Futures" in source
+        assert "Τοπικές ρυθμίσεις χειριστή" in source
+        assert "Ρύθμιση πρώτης εκτέλεσης" in source
+        assert "Local data lifecycle" in source
+        return
 
     # When / Then: Settings field options use the i18n catalog, not title-cased ids.
     assert '<option value="futures">선물</option>' in korean

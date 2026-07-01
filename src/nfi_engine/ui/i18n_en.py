@@ -46,6 +46,30 @@ EN_CATALOG: Final[Catalog] = {
     MessageKey.FIELD_UI_LOCALE: "Language",
     MessageKey.HOME_ACTION_EMPTY: "No operator action is required.",
     MessageKey.HOME_ACTION_QUEUE: "Action queue",
+    MessageKey.HOME_ACTION_PAIRLIST_EMPTY_DETAIL: (
+        "Add at least one whitelisted pair before running the paper engine."
+    ),
+    MessageKey.HOME_ACTION_PAIRLIST_EMPTY_TITLE: "Pairlist is empty",
+    MessageKey.HOME_ACTION_PAPER_READY_DETAIL: (
+        "Review status, pairlist, and safety panels before starting the bot."
+    ),
+    MessageKey.HOME_ACTION_PAPER_READY_TITLE: "Paper/testnet runtime is ready",
+    MessageKey.HOME_ACTION_PREFLIGHT_MISSING_DETAIL: (
+        "Load a preflight report to confirm setup, storage, and safety gates."
+    ),
+    MessageKey.HOME_ACTION_PREFLIGHT_MISSING_TITLE: "Run preflight before starting",
+    MessageKey.HOME_ACTION_READINESS_BLOCKED_DETAIL: (
+        "Review failed checks in setup before starting the runtime."
+    ),
+    MessageKey.HOME_ACTION_READINESS_BLOCKED_TITLE: "Preflight is blocking startup",
+    MessageKey.HOME_ACTION_RUNTIME_ERRORS_DETAIL: (
+        "Open Logs and inspect the latest error summaries before continuing."
+    ),
+    MessageKey.HOME_ACTION_RUNTIME_ERRORS_TITLE: "Recent runtime errors need review",
+    MessageKey.HOME_ACTION_SUPPORT_BUNDLE_DETAIL: (
+        "Capture a redacted support bundle after reviewing the logs if follow-up is needed."
+    ),
+    MessageKey.HOME_ACTION_SUPPORT_BUNDLE_TITLE: "Export a support bundle if errors persist",
     MessageKey.HOME_COCKPIT_ACTIVE_MODE: "Active mode",
     MessageKey.HOME_COCKPIT_ALLOCATED_AMOUNT: "Allocated amount",
     MessageKey.HOME_COCKPIT_BLOCKED: "Blocked",
@@ -53,6 +77,7 @@ EN_CATALOG: Final[Catalog] = {
     MessageKey.HOME_COCKPIT_CONFIGURED: "Configured",
     MessageKey.HOME_COCKPIT_CREDENTIALS_MISSING: "Exchange credentials missing",
     MessageKey.HOME_COCKPIT_CREDENTIALS_READY: "Exchange credentials ready",
+    MessageKey.HOME_COCKPIT_EXECUTION_SAFETY: "Execution safety",
     MessageKey.HOME_COCKPIT_GO_SETTINGS: "Open Settings setup",
     MessageKey.HOME_COCKPIT_LATEST_ERROR: "Latest error",
     MessageKey.HOME_COCKPIT_LEVERAGE: "Leverage",
@@ -69,10 +94,26 @@ EN_CATALOG: Final[Catalog] = {
     MessageKey.HOME_COCKPIT_WHERE_NEXT: "Where next",
     MessageKey.HOME_CONFIGURED_PAIRS: "{count} configured pairs",
     MessageKey.HOME_DOCUMENT_TITLE: "NFI Engine Home",
+    MessageKey.HOME_EXECUTION_SAFETY_TITLE: "Execution safety",
+    MessageKey.HOME_EXECUTION_SIGNAL_CIRCUIT_BREAKERS: "Circuit breakers",
+    MessageKey.HOME_EXECUTION_SIGNAL_IDEMPOTENCY: "Retry safety",
+    MessageKey.HOME_EXECUTION_SIGNAL_KILL_SWITCH: "Emergency stop",
+    MessageKey.HOME_EXECUTION_SIGNAL_ORDER_LIFECYCLE: "Order tracking",
+    MessageKey.HOME_EXECUTION_SIGNAL_PARTIAL_FILL_EXPOSURE: "Partial-fill exposure",
+    MessageKey.HOME_EXECUTION_SIGNAL_REQUIRED: "required",
+    MessageKey.HOME_EXECUTION_SIGNAL_RECONCILIATION: "Exchange reconciliation",
     MessageKey.HOME_METRIC_BOT_STATE: "Bot state",
     MessageKey.HOME_METRIC_MODE: "Mode",
     MessageKey.HOME_METRIC_OPEN_TRADES: "Open trades",
     MessageKey.HOME_METRIC_SESSION_PNL: "Session PnL",
+    MessageKey.HOME_OVERVIEW_CLOSED_TRADES: "closed",
+    MessageKey.HOME_OVERVIEW_DESCRIPTION: "Position, PnL, exposure, and risk in one pass.",
+    MessageKey.HOME_OVERVIEW_NO_POSITIONS: "No open positions.",
+    MessageKey.HOME_OVERVIEW_NO_TRADES: "No recent PnL events.",
+    MessageKey.HOME_OVERVIEW_POSITIONS: "Positions",
+    MessageKey.HOME_OVERVIEW_POSITIONS_DETAIL: "live exposure lane",
+    MessageKey.HOME_OVERVIEW_RECENT_PNL: "Recent PnL",
+    MessageKey.HOME_OVERVIEW_TITLE: "Account cockpit",
     MessageKey.HOME_PORTFOLIO_ACCOUNT_EQUITY: "Account equity",
     MessageKey.HOME_PORTFOLIO_AVAILABLE: "Available",
     MessageKey.HOME_PORTFOLIO_AVG_LEVERAGE: "Avg leverage",

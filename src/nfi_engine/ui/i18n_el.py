@@ -47,6 +47,30 @@ EL_CATALOG: Final[Catalog] = {
     MessageKey.FIELD_UI_LOCALE: "Γλώσσα",
     MessageKey.HOME_ACTION_EMPTY: "Δεν απαιτείται ενέργεια χειριστή.",
     MessageKey.HOME_ACTION_QUEUE: "Ουρά ενεργειών",
+    MessageKey.HOME_ACTION_PAIRLIST_EMPTY_DETAIL: (
+        "Προσθέστε τουλάχιστον ένα pair πριν τρέξει το paper engine."
+    ),
+    MessageKey.HOME_ACTION_PAIRLIST_EMPTY_TITLE: "Η pairlist είναι κενή",
+    MessageKey.HOME_ACTION_PAPER_READY_DETAIL: (
+        "Ελέγξτε κατάσταση, pairs και safety gates πριν την εκκίνηση."
+    ),
+    MessageKey.HOME_ACTION_PAPER_READY_TITLE: "Paper/testnet runtime έτοιμο",
+    MessageKey.HOME_ACTION_PREFLIGHT_MISSING_DETAIL: (
+        "Φορτώστε preflight report για setup, storage και safety gates."
+    ),
+    MessageKey.HOME_ACTION_PREFLIGHT_MISSING_TITLE: "Τρέξτε preflight πριν την εκκίνηση",
+    MessageKey.HOME_ACTION_READINESS_BLOCKED_DETAIL: (
+        "Ελέγξτε τα failed setup checks πριν ξεκινήσει το runtime."
+    ),
+    MessageKey.HOME_ACTION_READINESS_BLOCKED_TITLE: "Το preflight μπλοκάρει την εκκίνηση",
+    MessageKey.HOME_ACTION_RUNTIME_ERRORS_DETAIL: (
+        "Ανοίξτε τα logs και ελέγξτε τα πρόσφατα σφάλματα."
+    ),
+    MessageKey.HOME_ACTION_RUNTIME_ERRORS_TITLE: "Πρόσφατα runtime σφάλματα",
+    MessageKey.HOME_ACTION_SUPPORT_BUNDLE_DETAIL: (
+        "Αποθηκεύστε redacted support bundle αν χρειαστεί follow-up."
+    ),
+    MessageKey.HOME_ACTION_SUPPORT_BUNDLE_TITLE: "Εξαγωγή support bundle",
     MessageKey.HOME_COCKPIT_ACTIVE_MODE: "Ενεργή λειτουργία",
     MessageKey.HOME_COCKPIT_ALLOCATED_AMOUNT: "Δεσμευμένο ποσό",
     MessageKey.HOME_COCKPIT_BLOCKED: "Αποκλεισμένο",
@@ -54,6 +78,7 @@ EL_CATALOG: Final[Catalog] = {
     MessageKey.HOME_COCKPIT_CONFIGURED: "Ρύθμιση",
     MessageKey.HOME_COCKPIT_CREDENTIALS_MISSING: "Λείπουν exchange API credentials",
     MessageKey.HOME_COCKPIT_CREDENTIALS_READY: "Exchange API credentials έτοιμα",
+    MessageKey.HOME_COCKPIT_EXECUTION_SAFETY: "Ασφάλεια εντολών",
     MessageKey.HOME_COCKPIT_GO_SETTINGS: "Άνοιγμα Settings setup",
     MessageKey.HOME_COCKPIT_LATEST_ERROR: "Τελευταίο σφάλμα",
     MessageKey.HOME_COCKPIT_LEVERAGE: "Μόχλευση",
@@ -70,10 +95,26 @@ EL_CATALOG: Final[Catalog] = {
     MessageKey.HOME_COCKPIT_WHERE_NEXT: "Επόμενο σημείο",
     MessageKey.HOME_CONFIGURED_PAIRS: "{count} ρυθμισμένα pairs",
     MessageKey.HOME_DOCUMENT_TITLE: "NFI Engine Αρχική",
+    MessageKey.HOME_EXECUTION_SAFETY_TITLE: "Ασφάλεια εντολών",
+    MessageKey.HOME_EXECUTION_SIGNAL_CIRCUIT_BREAKERS: "Circuit breakers",
+    MessageKey.HOME_EXECUTION_SIGNAL_IDEMPOTENCY: "Ασφαλείς επαναλήψεις",
+    MessageKey.HOME_EXECUTION_SIGNAL_KILL_SWITCH: "Άμεση παύση",
+    MessageKey.HOME_EXECUTION_SIGNAL_ORDER_LIFECYCLE: "Παρακολούθηση εντολών",
+    MessageKey.HOME_EXECUTION_SIGNAL_PARTIAL_FILL_EXPOSURE: "Μερική έκθεση",
+    MessageKey.HOME_EXECUTION_SIGNAL_REQUIRED: "απαιτείται",
+    MessageKey.HOME_EXECUTION_SIGNAL_RECONCILIATION: "Συμφωνία exchange",
     MessageKey.HOME_METRIC_BOT_STATE: "Κατάσταση bot",
     MessageKey.HOME_METRIC_MODE: "Λειτουργία",
     MessageKey.HOME_METRIC_OPEN_TRADES: "Ανοικτές συναλλαγές",
     MessageKey.HOME_METRIC_SESSION_PNL: "Session PnL",
+    MessageKey.HOME_OVERVIEW_CLOSED_TRADES: "κλειστές",
+    MessageKey.HOME_OVERVIEW_DESCRIPTION: "Θέσεις, PnL, έκθεση και ρίσκο με μία ματιά.",
+    MessageKey.HOME_OVERVIEW_NO_POSITIONS: "Δεν υπάρχουν ανοικτές θέσεις.",
+    MessageKey.HOME_OVERVIEW_NO_TRADES: "Δεν υπάρχουν πρόσφατα PnL events.",
+    MessageKey.HOME_OVERVIEW_POSITIONS: "Θέσεις",
+    MessageKey.HOME_OVERVIEW_POSITIONS_DETAIL: "ζώνη live έκθεσης",
+    MessageKey.HOME_OVERVIEW_RECENT_PNL: "Πρόσφατο PnL",
+    MessageKey.HOME_OVERVIEW_TITLE: "Cockpit λογαριασμού",
     MessageKey.HOME_PORTFOLIO_ACCOUNT_EQUITY: "Equity λογαριασμού",
     MessageKey.HOME_PORTFOLIO_AVAILABLE: "Διαθέσιμα",
     MessageKey.HOME_PORTFOLIO_AVG_LEVERAGE: "Μέση μόχλευση",

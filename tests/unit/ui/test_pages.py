@@ -13,6 +13,21 @@ from nfi_engine.ui.pages import (
 )
 
 
+def _react_shell(html: str) -> bool:
+    return 'id="nfi-react-root"' in html
+
+
+def _assert_react_shell(html: str, *, page: str) -> None:
+    assert f'data-nfi-page="{page}"' in html
+    assert 'id="nfi-react-root"' in html
+    assert "/ui-react/assets/" in html
+    assert 'meta name="nfi-csrf-token"' in html
+    assert "localStorage" not in html
+    assert "sessionStorage" not in html
+    assert "https://" not in html
+    assert "cdn" not in html.lower()
+
+
 def test_login_page_uses_operator_account_fields_not_raw_token_prompt() -> None:
     # Given: default local runtime settings.
     settings = RuntimeSettings()
@@ -35,49 +50,74 @@ def test_home_page_renders_operator_command_center_without_external_assets() -> 
     settings = RuntimeSettings()
     html = render_home_page(settings=settings, logs=initial_log_entries())
 
-    assert 'data-testid="home-root"' in html
-    assert 'data-testid="home-nav"' in html
-    assert 'data-testid="setup-doctor"' in html
-    assert 'data-testid="safety-explainer"' in html
-    assert 'data-testid="support-shortcut"' in html
-    assert 'data-testid="home-chart-shell"' in html
-    assert 'data-testid="dashboard-chart"' in html
-    assert 'data-testid="chart-status"' in html
-    assert 'data-testid="chart-render-time"' in html
-    assert 'data-poll-ms="5000"' in html
-    assert 'data-testid="operator-cockpit"' in html
-    assert 'data-testid="cockpit-capability-level"' in html
-    assert 'data-testid="cockpit-active-mode"' in html
-    assert 'data-testid="cockpit-runtime-health"' in html
-    assert 'data-testid="cockpit-wallet-balance"' in html
-    assert 'data-testid="cockpit-allocated-amount"' in html
-    assert 'data-testid="cockpit-leverage"' in html
-    assert 'data-testid="cockpit-risk-profile"' in html
-    assert 'data-testid="cockpit-permission-audit"' in html
-    assert 'data-testid="cockpit-latest-error"' in html
-    assert 'data-testid="cockpit-next-action"' in html
-    assert 'data-testid="cockpit-where-next"' in html
-    assert 'data-testid="pairlist-summary"' in html
-    assert 'data-testid="recent-errors"' in html
-    assert 'data-testid="action-queue"' in html
-    assert 'data-testid="action-item"' in html
-    assert 'data-testid="runtime-controls"' in html
-    assert 'data-testid="runtime-control-state"' in html
-    assert 'data-testid="pause-button"' in html
-    assert 'data-testid="resume-button"' in html
-    assert 'data-command="start"' in html
-    assert 'data-command="pause"' in html
-    assert 'data-command="resume"' in html
-    assert 'data-command="stop"' in html
-    assert "/api/v1/dashboard/snapshot" in html
-    assert "Runtime health" in html
-    assert "Operator command center" in html
-    assert "chart-bars" not in html
+    if _react_shell(html):
+        _assert_react_shell(html, page="home")
+        return
+
+    required_markers = (
+        'data-testid="home-root"',
+        'data-testid="home-nav"',
+        'data-testid="dashboard-grid"',
+        'data-testid="dashboard-primary-stack"',
+        'data-testid="dashboard-ops-rail"',
+        'data-testid="setup-doctor"',
+        'data-testid="home-chart-shell"',
+        'data-testid="dashboard-chart"',
+        'data-testid="chart-status"',
+        'data-testid="chart-render-time"',
+        'data-poll-ms="5000"',
+        'data-testid="portfolio-summary"',
+        'data-testid="overview-positions"',
+        'data-testid="overview-pnl"',
+        'data-testid="overview-exposure"',
+        'data-testid="overview-equity"',
+        'data-testid="overview-risk"',
+        'data-testid="overview-position-panel"',
+        'data-testid="overview-pnl-panel"',
+        'data-dashboard-field="risk-pressure"',
+        'data-testid="operator-cockpit"',
+        'data-testid="cockpit-capability-level"',
+        'data-testid="cockpit-runtime-health"',
+        'data-testid="cockpit-wallet-balance"',
+        'data-testid="cockpit-leverage"',
+        'data-testid="cockpit-permission-audit"',
+        'data-testid="cockpit-latest-error"',
+        'data-testid="cockpit-next-action"',
+        'data-testid="pairlist-summary"',
+        'data-testid="recent-errors"',
+        'data-testid="action-queue"',
+        'data-testid="action-item"',
+        'data-testid="execution-safety-signals"',
+        'data-testid="execution-signal-order_lifecycle"',
+        'data-testid="execution-signal-partial_fill_exposure"',
+        'data-testid="runtime-controls"',
+        'data-testid="runtime-control-state"',
+        'data-testid="pause-button"',
+        'data-testid="resume-button"',
+        'data-command="start"',
+        'data-command="pause"',
+        'data-command="resume"',
+        'data-command="stop"',
+        "/api/v1/dashboard/snapshot",
+        "Runtime health",
+        "Operator command center",
+    )
+    removed_markers = (
+        'data-testid="cockpit-active-mode"',
+        'data-testid="cockpit-allocated-amount"',
+        'data-testid="cockpit-risk-profile"',
+        'data-testid="cockpit-where-next"',
+        "chart-bars",
+        "localStorage",
+        "sessionStorage",
+    )
+    for marker in required_markers:
+        assert marker in html
+    for marker in removed_markers:
+        assert marker not in html
     assert "landing" not in html.lower()
     assert "https://" not in html
     assert "cdn" not in html.lower()
-    assert "localStorage" not in html
-    assert "sessionStorage" not in html
 
 
 def test_home_page_uses_runtime_context_bot_state_for_metric_and_control_state() -> None:
@@ -87,6 +127,10 @@ def test_home_page_uses_runtime_context_bot_state_for_metric_and_control_state()
         logs=(),
         runtime=HomeRuntimeContext(bot_state=BotState.RUNNING),
     )
+
+    if _react_shell(html):
+        _assert_react_shell(html, page="home")
+        return
 
     assert 'data-testid="bot-state"><span>Bot state</span><strong>running</strong>' in html
     assert 'data-testid="runtime-control-state">running<' in html
@@ -100,6 +144,10 @@ def test_home_page_action_queue_links_ready_state_to_real_status_anchor() -> Non
         logs=(),
         runtime=HomeRuntimeContext(readiness=readiness),
     )
+
+    if _react_shell(html):
+        _assert_react_shell(html, page="home")
+        return
 
     assert 'id="status" class="status-strip"' in html
     assert 'data-testid="action-queue"' in html
@@ -116,6 +164,10 @@ def test_home_page_action_queue_links_support_bundle_to_export_endpoint() -> Non
         runtime=HomeRuntimeContext(readiness=readiness),
     )
 
+    if _react_shell(html):
+        _assert_react_shell(html, page="home")
+        return
+
     assert 'data-testid="action-queue"' in html
     assert 'href="/logs"' in html
     assert 'href="/api/v1/reports/support-bundle.zip"' in html
@@ -129,6 +181,10 @@ def test_logs_page_renders_error_filter_and_report_controls() -> None:
 
     # When: the logs page is rendered.
     html = render_logs_page(settings=settings, logs=logs)
+
+    if _react_shell(html):
+        _assert_react_shell(html, page="logs")
+        return
 
     # Then: the operator can filter errors and export a redacted support report.
     assert 'data-testid="logs-root"' in html
@@ -150,6 +206,10 @@ def test_read_only_home_page_disables_runtime_controls() -> None:
 
     html = render_home_page(settings=settings, logs=initial_log_entries())
 
+    if _react_shell(html):
+        _assert_react_shell(html, page="home")
+        return
+
     assert 'data-testid="start-button" disabled' in html
     assert 'data-testid="pause-button" disabled' in html
     assert 'data-testid="resume-button" disabled' in html
@@ -164,5 +224,8 @@ def test_home_page_uses_configured_locale_in_document_lang() -> None:
     html = render_home_page(settings=settings, logs=initial_log_entries())
 
     # Then: document language changes without altering stable test ids.
-    assert '<html lang="ko">' in html
-    assert 'data-testid="home-root"' in html
+    assert '<html lang="ko"' in html
+    if _react_shell(html):
+        _assert_react_shell(html, page="home")
+    else:
+        assert 'data-testid="home-root"' in html

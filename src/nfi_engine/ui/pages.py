@@ -19,6 +19,7 @@ from nfi_engine.ui.i18n import localize, render_i18n_script
 from nfi_engine.ui.i18n_keys import MessageKey
 from nfi_engine.ui.login_page import render_login_body
 from nfi_engine.ui.logs_page import render_logs_body
+from nfi_engine.ui.react_app import react_app_available, render_react_app_page
 from nfi_engine.ui.settings_page import render_settings_body
 
 if TYPE_CHECKING:
@@ -33,17 +34,26 @@ def render_home_page(
     csrf_token: str = "",
 ) -> str:
     locale = settings.ui.locale
+    home_body = render_home_body(
+        settings=settings,
+        logs=logs,
+        runtime=runtime or HomeRuntimeContext(),
+        nav=render_nav(active="home", locale=locale),
+    )
+    if react_app_available():
+        return render_react_app_page(
+            title=localize(settings.ui.locale, MessageKey.HOME_DOCUMENT_TITLE),
+            locale=locale,
+            csrf_token=csrf_token,
+            page="home",
+            fallback_body=home_body,
+        )
     return render_document(
         title=localize(settings.ui.locale, MessageKey.HOME_DOCUMENT_TITLE),
         locale=locale,
         csrf_token=csrf_token,
         extra_style=DASHBOARD_STYLE,
-        body=render_home_body(
-            settings=settings,
-            logs=logs,
-            runtime=runtime or HomeRuntimeContext(),
-            nav=render_nav(active="home", locale=locale),
-        )
+        body=home_body
         + render_i18n_script(settings.ui.locale)
         + RUNTIME_CONTROL_SCRIPT
         + DASHBOARD_SCRIPT,
@@ -57,15 +67,24 @@ def render_settings_page(
     csrf_token: str = "",
 ) -> str:
     locale = settings.ui.locale
+    settings_body = render_settings_body(
+        settings=settings,
+        readiness=readiness,
+        nav=render_nav(active="settings", locale=locale),
+    )
+    if react_app_available():
+        return render_react_app_page(
+            title=localize(settings.ui.locale, MessageKey.SETTINGS_DOCUMENT_TITLE),
+            locale=locale,
+            csrf_token=csrf_token,
+            page="settings",
+            fallback_body=settings_body,
+        )
     return render_document(
         title=localize(settings.ui.locale, MessageKey.SETTINGS_DOCUMENT_TITLE),
         locale=locale,
         csrf_token=csrf_token,
-        body=render_settings_body(
-            settings=settings,
-            readiness=readiness,
-            nav=render_nav(active="settings", locale=locale),
-        )
+        body=settings_body
         + render_i18n_script(settings.ui.locale)
         + SETTINGS_SCRIPT
         + EXCHANGE_PICKER_SCRIPT
@@ -82,17 +101,24 @@ def render_logs_page(
     csrf_token: str = "",
 ) -> str:
     locale = settings.ui.locale
+    logs_body = render_logs_body(
+        settings=settings,
+        logs=logs,
+        nav=render_nav(active="logs", locale=locale),
+    )
+    if react_app_available():
+        return render_react_app_page(
+            title=localize(settings.ui.locale, MessageKey.LOGS_DOCUMENT_TITLE),
+            locale=locale,
+            csrf_token=csrf_token,
+            page="logs",
+            fallback_body=logs_body,
+        )
     return render_document(
         title=localize(settings.ui.locale, MessageKey.LOGS_DOCUMENT_TITLE),
         locale=locale,
         csrf_token=csrf_token,
-        body=render_logs_body(
-            settings=settings,
-            logs=logs,
-            nav=render_nav(active="logs", locale=locale),
-        )
-        + render_i18n_script(settings.ui.locale)
-        + LOGS_SCRIPT,
+        body=logs_body + render_i18n_script(settings.ui.locale) + LOGS_SCRIPT,
     )
 
 

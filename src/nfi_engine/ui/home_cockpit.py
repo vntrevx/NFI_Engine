@@ -10,11 +10,12 @@ from nfi_engine.exchange.credential_requirements import missing_runtime_credenti
 from nfi_engine.exchange.discovery import build_exchange_capability_report
 from nfi_engine.exchange.errors import ExchangeError
 from nfi_engine.exchange.permissions import audit_exchange_api_permissions
-from nfi_engine.preflight.models import PreflightReport
+from nfi_engine.runtime_health import RuntimeHealthState
+from nfi_engine.ui.home_action_copy import action_title
 from nfi_engine.ui.home_context import HomeRuntimeContext
 from nfi_engine.ui.i18n import localize
 from nfi_engine.ui.i18n_keys import MessageKey
-from nfi_engine.wallet import WalletBalanceStatus
+from nfi_engine.wallet import WalletBalanceCode, WalletBalanceStatus
 
 
 def render_home_cockpit(
@@ -60,21 +61,6 @@ def _cockpit_items(
             _configured(settings, locale=locale),
         ),
         _item(
-            "cockpit-safety",
-            localize(locale, MessageKey.HOME_COCKPIT_SAFETY),
-            _safety(settings, runtime.readiness, locale=locale),
-        ),
-        _item(
-            "cockpit-capability-level",
-            localize(locale, MessageKey.HOME_COCKPIT_CAPABILITY_LEVEL),
-            _capability_level(settings),
-        ),
-        _item(
-            "cockpit-active-mode",
-            localize(locale, MessageKey.HOME_COCKPIT_ACTIVE_MODE),
-            _active_mode(settings, locale=locale),
-        ),
-        _item(
             "cockpit-runtime-health",
             localize(locale, MessageKey.HOME_COCKPIT_RUNTIME_HEALTH),
             _runtime_health(runtime, locale=locale),
@@ -85,24 +71,19 @@ def _cockpit_items(
             _wallet_balance(runtime, locale=locale),
         ),
         _item(
-            "cockpit-allocated-amount",
-            localize(locale, MessageKey.HOME_COCKPIT_ALLOCATED_AMOUNT),
-            f"{_decimal(settings.risk.stake_usdt)} USDT",
+            "cockpit-capability-level",
+            localize(locale, MessageKey.HOME_COCKPIT_CAPABILITY_LEVEL),
+            _capability_level(settings),
+        ),
+        _item(
+            "cockpit-permission-audit",
+            localize(locale, MessageKey.HOME_COCKPIT_PERMISSION_AUDIT),
+            _permission_audit(settings, locale=locale),
         ),
         _item(
             "cockpit-leverage",
             localize(locale, MessageKey.HOME_COCKPIT_LEVERAGE),
             f"{_decimal(settings.risk.leverage)}x",
-        ),
-        _item(
-            "cockpit-risk-profile",
-            localize(locale, MessageKey.HOME_COCKPIT_RISK_PROFILE),
-            settings.risk.risk_profile.value,
-        ),
-        _item(
-            "cockpit-permission-audit",
-            localize(locale, MessageKey.HOME_COCKPIT_PERMISSION_AUDIT),
-            _permission_audit(settings),
         ),
         _item(
             "cockpit-latest-error",
@@ -113,11 +94,6 @@ def _cockpit_items(
             "cockpit-next-action",
             localize(locale, MessageKey.HOME_COCKPIT_NEXT_ACTION),
             _next_action(actions, locale=locale),
-        ),
-        _item(
-            "cockpit-where-next",
-            localize(locale, MessageKey.HOME_COCKPIT_WHERE_NEXT),
-            localize(locale, MessageKey.HOME_COCKPIT_GO_SETTINGS),
         ),
     )
 
@@ -135,20 +111,6 @@ def _configured(settings: RuntimeSettings, *, locale: Locale) -> str:
     return localize(locale, MessageKey.HOME_COCKPIT_CREDENTIALS_MISSING)
 
 
-def _safety(
-    settings: RuntimeSettings,
-    readiness: PreflightReport | None,
-    *,
-    locale: Locale,
-) -> str:
-    blocked = settings.engine.live_trading or (
-        readiness.blocked if readiness is not None else False
-    )
-    if blocked:
-        return localize(locale, MessageKey.HOME_COCKPIT_BLOCKED)
-    return localize(locale, MessageKey.HOME_COCKPIT_SAFE)
-
-
 def _capability_level(settings: RuntimeSettings) -> str:
     try:
         report = build_exchange_capability_report(
@@ -160,7 +122,7 @@ def _capability_level(settings: RuntimeSettings) -> str:
     return report.profile.support_level.value
 
 
-def _permission_audit(settings: RuntimeSettings) -> str:
+def _permission_audit(settings: RuntimeSettings, *, locale: Locale) -> str:
     audit = audit_exchange_api_permissions(
         read=settings.exchange.permission_read,
         trade=settings.exchange.permission_trade,
@@ -168,9 +130,11 @@ def _permission_audit(settings: RuntimeSettings) -> str:
         withdrawal=settings.exchange.permission_withdrawal,
         ip_allowlist=settings.exchange.permission_ip_allowlist,
     )
-    if audit.live_safe:
-        return audit.summary
-    return f"blocked: {audit.summary}"
+    if not audit.live_safe:
+        return localize(locale, MessageKey.COMMON_BLOCKED)
+    if audit.diagnostic_codes:
+        return localize(locale, MessageKey.HOME_COCKPIT_RUNTIME_UNKNOWN)
+    return localize(locale, MessageKey.COMMON_READY)
 
 
 def _latest_error(logs: tuple[LogEntryResponse, ...], *, locale: Locale) -> str:
@@ -183,7 +147,7 @@ def _latest_error(logs: tuple[LogEntryResponse, ...], *, locale: Locale) -> str:
 def _next_action(actions: tuple[DashboardAction, ...], *, locale: Locale) -> str:
     if not actions:
         return localize(locale, MessageKey.HOME_ACTION_EMPTY)
-    return actions[0].title
+    return action_title(actions[0], locale=locale)
 
 
 def _wallet_balance(runtime: HomeRuntimeContext, *, locale: Locale) -> str:
@@ -198,23 +162,28 @@ def _wallet_balance(runtime: HomeRuntimeContext, *, locale: Locale) -> str:
         return (
             f"{_decimal(snapshot.available)} / {_decimal(snapshot.equity)} {snapshot.quote_asset}"
         )
-    return f"{snapshot.code.value}: {snapshot.next_action}"
+    if snapshot.code is WalletBalanceCode.MISSING_CREDENTIALS:
+        return localize(locale, MessageKey.HOME_COCKPIT_CREDENTIALS_MISSING)
+    label_by_status = {
+        WalletBalanceStatus.BLOCKED: MessageKey.COMMON_BLOCKED,
+        WalletBalanceStatus.UNAVAILABLE: MessageKey.COMMON_WARNING,
+        WalletBalanceStatus.ERROR: MessageKey.COMMON_ERROR,
+        WalletBalanceStatus.FETCHED: MessageKey.HOME_COCKPIT_WALLET_NOT_FETCHED,
+    }
+    return localize(locale, label_by_status[snapshot.status])
 
 
 def _runtime_health(runtime: HomeRuntimeContext, *, locale: Locale) -> str:
     snapshot = runtime.runtime_health
     if snapshot is None:
         return localize(locale, MessageKey.HOME_COCKPIT_RUNTIME_UNKNOWN)
-    return f"{snapshot.state.value}: {snapshot.next_action}"
-
-
-def _active_mode(settings: RuntimeSettings, *, locale: Locale) -> str:
-    venue = (
-        localize(locale, MessageKey.HOME_VALUE_TESTNET)
-        if settings.exchange.testnet
-        else localize(locale, MessageKey.HOME_VALUE_LIVE_VENUE)
-    )
-    return f"{settings.exchange.trading_mode.value} / {venue}"
+    match snapshot.state:
+        case RuntimeHealthState.HEALTHY:
+            return localize(locale, MessageKey.COMMON_READY)
+        case RuntimeHealthState.DEGRADED:
+            return localize(locale, MessageKey.COMMON_WARNING)
+        case RuntimeHealthState.BLOCKED:
+            return localize(locale, MessageKey.COMMON_BLOCKED)
 
 
 def _decimal(value: Decimal) -> str:

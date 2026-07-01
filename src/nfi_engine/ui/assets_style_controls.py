@@ -14,11 +14,26 @@ CONTROL_STYLE: Final = """
   background: linear-gradient(180deg, var(--panel), var(--panel-subtle));
   border-color: var(--line-strong);
 }
+main[data-testid="home-root"] .status-strip .metric {
+  min-height: 58px;
+  padding: 8px 10px;
+  border-color: var(--home-line);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .04), rgb(255 255 255 / 0)),
+    var(--home-panel-raised);
+  color: var(--home-text);
+  box-shadow: none;
+}
 .metric span, .cockpit-item span, .update-state span, .x7-status-item span {
   display: block;
   color: var(--muted);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+main[data-testid="home-root"] .status-strip .metric span {
+  color: var(--home-muted);
+  font-size: 11px;
 }
 .metric strong, .cockpit-item strong, .update-state strong, .x7-status-item strong {
   display: block;
@@ -26,6 +41,26 @@ CONTROL_STYLE: Final = """
   font-size: 13px;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+main[data-testid="home-root"] .status-strip .metric strong {
+  color: var(--home-ivory);
+  font-size: 18px;
+  line-height: 1.15;
+}
+main[data-testid="home-root"] .status-strip .metric[data-testid="bot-state"] {
+  border-left: 3px solid var(--home-info);
+}
+main[data-testid="home-root"] .status-strip .metric[data-testid="exchange-mode"] {
+  border-left: 3px solid var(--home-warn);
+}
+main[data-testid="home-root"] .status-strip .metric[data-testid="open-trades"] {
+  border-left: 3px solid var(--home-ivory);
+}
+main[data-testid="home-root"] .status-strip .metric[data-testid="session-pnl"] strong {
+  color: var(--home-positive);
+}
+main[data-testid="home-root"] .status-strip .metric[data-testid="session-pnl"] {
+  border-left: 3px solid var(--home-positive);
 }
 .settings-stack { display: grid; gap: 14px; margin-top: 18px; }
 .settings-secondary-stack {
@@ -190,4 +225,65 @@ button:disabled, input:disabled, select:disabled {
   min-height: 36px;
 }
 .lock { border-left-color: var(--warn); background: var(--warn-soft); }
+main[data-testid="home-root"] .cockpit-item,
+main[data-testid="home-root"] .update-state,
+main[data-testid="home-root"] .x7-status-item {
+  min-height: 60px;
+  padding: 8px 9px;
+  border-color: var(--home-line);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .022), transparent),
+    var(--home-panel-raised);
+  color: var(--home-text);
+}
+main[data-testid="home-root"] .cockpit-item span,
+main[data-testid="home-root"] .update-state span,
+main[data-testid="home-root"] .x7-status-item span {
+  color: var(--home-muted);
+}
+main[data-testid="home-root"] .cockpit-item strong,
+main[data-testid="home-root"] .update-state strong,
+main[data-testid="home-root"] .x7-status-item strong {
+  color: var(--home-ivory);
+  font-size: 13px;
+}
+main[data-testid="home-root"] input,
+main[data-testid="home-root"] select,
+main[data-testid="home-root"] button,
+main[data-testid="home-root"] .button {
+  min-height: 32px;
+  border-color: var(--home-line);
+  border-radius: 2px;
+  background: var(--home-panel-raised);
+  color: var(--home-text);
+  font-size: 12px;
+}
+main[data-testid="home-root"] button:hover,
+main[data-testid="home-root"] .button:hover {
+  border-color: var(--home-line-strong);
+  background: var(--home-panel-hot);
+}
+main[data-testid="home-root"] button.primary {
+  border-color: var(--home-positive);
+  background: var(--home-positive);
+  color: #06231a;
+}
+main[data-testid="home-root"] .toolbar {
+  gap: 6px;
+  margin-top: 8px;
+}
+main[data-testid="home-root"] .state,
+main[data-testid="home-root"] .audit,
+main[data-testid="home-root"] .lock {
+  min-height: 32px;
+  margin-top: 8px;
+  padding: 7px 9px;
+  border-left-color: var(--home-positive);
+  background: var(--home-panel-raised);
+  color: var(--home-text);
+}
+main[data-testid="home-root"] .lock {
+  border-left-color: var(--home-warn);
+}
 """

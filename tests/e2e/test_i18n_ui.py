@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 # ruff: noqa: RUF001
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -15,6 +16,90 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 LOCAL_BEARER = "local-test-bearer"
+FRONTEND_I18N = Path("frontend/src/i18n.ts")
+FRONTEND_I18N_SOURCE = FRONTEND_I18N.read_text(encoding="utf-8")
+
+
+def _react_shell(html: str) -> bool:
+    return 'id="nfi-react-root"' in html
+
+
+def _react_expected(locale: Locale) -> tuple[str, ...]:
+    if locale is Locale.KO:
+        return ("로컬 운영자 설정", "최근 이벤트", "안전 구성", "첫 실행 설정", "드라이런")
+    if locale is Locale.EL:
+        return (
+            "Τοπικές ρυθμίσεις χειριστή",
+            "Πρόσφατα γεγονότα",
+            "Ασφαλής λειτουργία",
+            "Ρύθμιση πρώτης εκτέλεσης",
+            "Δοκιμή",
+        )
+    return (
+        "Local operator settings",
+        "Recent events",
+        "Runtime safe",
+        "First-run setup",
+        "Dry run",
+    )
+
+
+def _assert_react_i18n_contract(
+    *,
+    locale: Locale,
+    expected: tuple[str, ...],
+    pages: tuple[str, str, str],
+    login: str,
+) -> None:
+    home, settings_page, logs = pages
+    assert 'data-nfi-page="home"' in home
+    assert 'data-nfi-page="settings"' in settings_page
+    assert 'data-nfi-page="logs"' in logs
+    for text in _react_expected(locale):
+        assert text in FRONTEND_I18N_SOURCE
+    assert expected[14] in login
+    all_pages = (*pages, login)
+    assert not any("navigator.language" in page for page in all_pages)
+    assert not any("localStorage" in page or "sessionStorage" in page for page in all_pages)
+
+
+def _assert_legacy_i18n_contract(
+    *,
+    expected: tuple[str, ...],
+    pages: tuple[str, str, str],
+    login: str,
+) -> None:
+    home, settings_page, logs = pages
+    assert expected[0] in home
+    assert expected[1] in home
+    assert expected[2] in settings_page
+    assert expected[3] in settings_page
+    assert expected[4] in settings_page
+    assert expected[5] in logs
+    assert expected[6] in home
+    assert expected[7] in home
+    assert expected[8] in settings_page
+    assert expected[9] in settings_page
+    assert expected[10] in settings_page
+    assert expected[11] in logs
+    assert expected[12] in logs
+    assert expected[13] in settings_page
+    assert expected[14] in login
+    assert expected[15] in settings_page
+    assert expected[16] in settings_page
+    assert expected[17] in settings_page
+    assert expected[18] in settings_page
+    assert expected[19] in home
+    assert expected[20] in home
+    assert expected[21] in settings_page
+    assert expected[22] in settings_page
+    assert expected[23] in settings_page
+    assert "CONFIG_VALIDATION_ERROR" in logs
+    assert all('data-testid="' in page for page in pages)
+    assert 'data-testid="login-form"' in login
+    all_pages = (*pages, login)
+    assert not any("navigator.language" in page for page in all_pages)
+    assert not any("localStorage" in page or "sessionStorage" in page for page in all_pages)
 
 
 @pytest.mark.anyio
@@ -136,42 +221,21 @@ async def test_home_settings_and_logs_are_localized_without_changing_contracts(
         login = await client.get("/")
 
     # Then: user-facing copy changes, while contracts and machine codes stay stable.
-    expected_lang = f'<html lang="{locale.value}">'
+    expected_lang = f'<html lang="{locale.value}"'
     pages = (home.text, settings_page.text, logs.text)
     assert all(response.status_code == 200 for response in (home, settings_page, logs))
     assert login.status_code == 401
     assert all(expected_lang in page for page in pages)
     assert expected_lang in login.text
-    assert expected[0] in home.text
-    assert expected[1] in home.text
-    assert expected[2] in settings_page.text
-    assert expected[3] in settings_page.text
-    assert expected[4] in settings_page.text
-    assert expected[5] in logs.text
-    assert expected[6] in home.text
-    assert expected[7] in home.text
-    assert expected[8] in settings_page.text
-    assert expected[9] in settings_page.text
-    assert expected[10] in settings_page.text
-    assert expected[11] in logs.text
-    assert expected[12] in logs.text
-    assert expected[13] in settings_page.text
-    assert expected[14] in login.text
-    assert expected[15] in settings_page.text
-    assert expected[16] in settings_page.text
-    assert expected[17] in settings_page.text
-    assert expected[18] in settings_page.text
-    assert expected[19] in home.text
-    assert expected[20] in home.text
-    assert expected[21] in settings_page.text
-    assert expected[22] in settings_page.text
-    assert expected[23] in settings_page.text
-    assert "CONFIG_VALIDATION_ERROR" in logs.text
-    assert all('data-testid="' in page for page in pages)
-    assert 'data-testid="login-form"' in login.text
-    all_pages = (*pages, login.text)
-    assert not any("navigator.language" in page for page in all_pages)
-    assert not any("localStorage" in page or "sessionStorage" in page for page in all_pages)
+    if _react_shell(home.text):
+        _assert_react_i18n_contract(
+            locale=locale,
+            expected=expected,
+            pages=pages,
+            login=login.text,
+        )
+        return
+    _assert_legacy_i18n_contract(expected=expected, pages=pages, login=login.text)
 
 
 @pytest.mark.anyio

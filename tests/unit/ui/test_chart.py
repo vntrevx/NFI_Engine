@@ -31,6 +31,8 @@ def test_dashboard_script_polls_snapshot_and_tracks_chart_states() -> None:
     assert "requestAnimationFrame" in script
     assert "credentials: 'same-origin'" in script
     assert "getContext('2d')" in script
+    assert "updateOverview" in script
+    assert "data-dashboard-field" in script
     assert "renderedPoints" in script
     assert "chartNonblank" in script
     assert "Authorization" not in script

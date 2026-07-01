@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from decimal import Decimal
 from html import escape
-from typing import Final
 
 from nfi_engine.api.models import LogEntryResponse
 from nfi_engine.config import Locale, LogLevel, RuntimeSettings
 from nfi_engine.dashboard import (
-    DashboardAction,
     DashboardReadModels,
     build_dashboard_actions,
     summarize_dashboard_read_models,
 )
 from nfi_engine.preflight.models import PreflightReport
 from nfi_engine.ui.chart import render_dashboard_chart_panel
+from nfi_engine.ui.home_actions import render_action_queue
 from nfi_engine.ui.home_cockpit import render_home_cockpit
 from nfi_engine.ui.home_context import HomeRuntimeContext
+from nfi_engine.ui.home_execution import render_execution_safety_signals
 from nfi_engine.ui.home_portfolio import render_portfolio_summary
 from nfi_engine.ui.i18n import format_message, localize
 from nfi_engine.ui.i18n_keys import MessageKey
@@ -23,13 +23,6 @@ from nfi_engine.ui.runtime_controls import render_runtime_controls
 from nfi_engine.ui.x7_status import render_x7_semantic_status
 
 PAIR_PREVIEW_LIMIT = 4
-ACTION_TARGET_HREFS: Final[dict[str, str]] = {
-    "dashboard/status": "#status",
-    "logs": "/logs",
-    "logs/support-bundle": "/api/v1/reports/support-bundle.zip",
-    "settings": "/settings",
-    "settings/setup": "/settings",
-}
 
 
 def render_home_body(
@@ -43,8 +36,9 @@ def render_home_body(
     resolved_runtime = runtime or HomeRuntimeContext()
     pairs = _pairs(settings)
     errors = tuple(log for log in logs if log.level is LogLevel.ERROR)
+    read_models = resolved_runtime.read_models or DashboardReadModels.empty()
     summary = summarize_dashboard_read_models(
-        resolved_runtime.read_models or DashboardReadModels.empty(),
+        read_models,
     )
     actions = build_dashboard_actions(
         settings=settings,
@@ -61,6 +55,23 @@ def render_home_body(
         "bot-state",
         localize(locale, MessageKey.HOME_METRIC_BOT_STATE),
         resolved_runtime.bot_state.value,
+    )
+    portfolio = render_portfolio_summary(
+        summary,
+        read_models=read_models,
+        locale=locale,
+    )
+    chart = render_dashboard_chart_panel(
+        exchange=settings.exchange.name,
+        trading_mode=settings.exchange.trading_mode.value,
+        locale=locale,
+    )
+    cockpit = render_home_cockpit(
+        settings=settings,
+        logs=logs,
+        actions=actions,
+        locale=locale,
+        runtime=resolved_runtime,
     )
     return (
         '<main data-testid="home-root">\n'
@@ -95,24 +106,15 @@ def render_home_body(
             )
         }\n"
         "  </div>\n"
-        '  <div class="dashboard-grid">\n'
-        f"{
-            render_dashboard_chart_panel(
-                exchange=settings.exchange.name,
-                trading_mode=settings.exchange.trading_mode.value,
-                locale=locale,
-            )
-        }\n"
-        f"{
-            render_home_cockpit(
-                settings=settings,
-                logs=logs,
-                actions=actions,
-                locale=locale,
-                runtime=resolved_runtime,
-            )
-        }\n"
-        f"{
+        '  <div class="dashboard-grid" data-testid="dashboard-grid">\n'
+        '    <div class="dashboard-primary-stack" data-testid="dashboard-primary-stack">\n'
+        f"{portfolio}\n"
+        f"{chart}\n"
+        f"    {render_execution_safety_signals(locale=locale)}\n"
+        "    </div>\n"
+        '    <aside class="dashboard-ops-rail" data-testid="dashboard-ops-rail">\n'
+        f"{cockpit}\n"
+        f"    {
             render_runtime_controls(
                 settings=settings,
                 locale=locale,
@@ -120,20 +122,11 @@ def render_home_body(
             )
         }\n"
         f"{render_x7_semantic_status(x7_status, locale=locale)}"
-        f"    {render_portfolio_summary(summary, locale=locale)}\n"
-        f"    {_action_queue(actions, locale=locale)}\n"
+        f"    {render_action_queue(actions, locale=locale)}\n"
         f"    {_setup_doctor(resolved_runtime.readiness, locale=locale)}\n"
-        f"    {_safety_explainer(resolved_runtime.readiness, locale=locale)}\n"
         f"    {_pairlist_summary(pairs, locale=locale)}\n"
         f"    {_recent_errors(errors, locale=locale)}\n"
-        '    <section data-testid="support-shortcut">\n'
-        f"      <h2>{localize(locale, MessageKey.HOME_SUPPORT_BUNDLE)}</h2>\n"
-        f"      <p>{localize(locale, MessageKey.HOME_SUPPORT_DESCRIPTION)}</p>\n"
-        '      <div class="toolbar">\n'
-        '        <a class="button" href="/api/v1/reports/support-bundle.zip" '
-        f'download="nfi-support-report.zip">{localize(locale, MessageKey.EXPORT)}</a>\n'
-        "      </div>\n"
-        "    </section>\n"
+        "    </aside>\n"
         "  </div>\n"
         "</main>\n"
     )
@@ -143,29 +136,6 @@ def _metric(test_id: str, label: str, value: str) -> str:
     return (
         f'<div class="metric" data-testid="{escape(test_id)}">'
         f"<span>{escape(label)}</span><strong>{escape(value)}</strong></div>"
-    )
-
-
-def _action_queue(actions: tuple[DashboardAction, ...], *, locale: Locale) -> str:
-    rows = "\n".join(_action_row(action) for action in actions)
-    if rows == "":
-        rows = f'<li class="muted">{localize(locale, MessageKey.HOME_ACTION_EMPTY)}</li>'
-    return (
-        '<section data-testid="action-queue">\n'
-        f"  <h2>{localize(locale, MessageKey.HOME_ACTION_QUEUE)}</h2>\n"
-        f"  <ul>{rows}</ul>\n"
-        "</section>\n"
-    )
-
-
-def _action_row(action: DashboardAction) -> str:
-    href = ACTION_TARGET_HREFS.get(action.target, "#status")
-    return (
-        f'<li data-testid="action-item" class="action-{escape(action.severity)}">'
-        f"<strong>{escape(action.title)}</strong>"
-        f"<span>{escape(action.detail)}</span>"
-        f'<a href="{escape(href)}">{escape(action.target)}</a>'
-        "</li>"
     )
 
 
@@ -190,21 +160,6 @@ def _setup_doctor(readiness: PreflightReport | None, *, locale: Locale) -> str:
         f"  <h2>{localize(locale, MessageKey.HOME_SETUP_DOCTOR)}</h2>\n"
         f'  <div class="state">{escape(status)}</div>\n'
         f"  {_readiness_list(readiness, locale=locale)}\n"
-        "</section>\n"
-    )
-
-
-def _safety_explainer(readiness: PreflightReport | None, *, locale: Locale) -> str:
-    blocked = readiness.blocked if readiness is not None else False
-    summary = localize(
-        locale,
-        MessageKey.HOME_SAFETY_BLOCKED if blocked else MessageKey.HOME_SAFETY_PAPER_ONLY,
-    )
-    return (
-        '<section data-testid="safety-explainer">\n'
-        f"  <h2>{localize(locale, MessageKey.HOME_SAFETY_EXPLAINER)}</h2>\n"
-        f'  <div class="lock">{escape(summary)}</div>\n'
-        f"  <p>{localize(locale, MessageKey.HOME_SAFETY_LIVE_GATED)}</p>\n"
         "</section>\n"
     )
 

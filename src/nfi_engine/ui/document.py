@@ -5,6 +5,7 @@ from typing import Final
 
 from nfi_engine.config import Locale
 from nfi_engine.ui.assets import STYLE
+from nfi_engine.ui.assets_style_stack import STACK_STYLE
 from nfi_engine.ui.i18n import localize
 from nfi_engine.ui.i18n_keys import MessageKey
 
@@ -33,7 +34,7 @@ def render_document(
   <meta name="nfi-csrf-token" content="{escape(csrf_token)}">
   <link rel="icon" href="{FAVICON_HREF}">
   <title>{escape(title)}</title>
-  <style>{STYLE}{extra_style}</style>
+  <style>{STYLE}{extra_style}{STACK_STYLE}</style>
 </head>
 <body>{body}</body>
 </html>

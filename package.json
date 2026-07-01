@@ -4,6 +4,11 @@
   "private": true,
   "description": "Local one-line operator bootstrap wrappers for NFI Engine.",
   "scripts": {
+    "frontend:build": "vite build --config frontend/vite.config.ts",
+    "frontend:dev": "vite --config frontend/vite.config.ts",
+    "frontend:doctor": "react-doctor",
+    "frontend:scan": "react-scan",
+    "frontend:typecheck": "tsc -p frontend/tsconfig.json --noEmit",
     "nfi:browser-qa:deps": "bash scripts/browser_qa_deps.sh",
     "nfi:browser-qa": "node scripts/browser_qa_t10.mjs",
     "nfi:browser-qa:wp8-3": "node scripts/browser_qa_t24_data_lifecycle.mjs",
@@ -16,6 +21,21 @@
     "nfi:pi4:rc-check": "bash scripts/pi4_rc_profile.sh"
   },
   "devDependencies": {
-    "playwright-core": "1.60.0"
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "playwright-core": "1.60.0",
+    "react-doctor": "^0.5.8",
+    "react-grab": "^0.1.47",
+    "react-scan": "^0.5.7",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.0"
+  },
+  "dependencies": {
+    "lucide-react": "^1.22.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }

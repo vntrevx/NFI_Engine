@@ -187,7 +187,7 @@ async def test_config_apply_updates_runtime_ui_and_write_gate_surfaces() -> None
     assert locale_payload.applied is True
     assert read_only_payload.applied is True
     assert localized_page.status_code == 200
-    assert '<html lang="ko">' in localized_page.text
+    assert '<html lang="ko"' in localized_page.text
     assert "로컬 운영자 설정" in localized_page.text
     assert blocked_write.status_code == 403
     assert b'"code":"READONLY_ACTION_BLOCKED"' in blocked_write.content
