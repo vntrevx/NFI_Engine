@@ -61,6 +61,22 @@ async def test_trading_repositories_return_bounded_dashboard_lists(
         positions = PositionRepository(session)
         orders = OrderRepository(session)
         await trades.create(_trade("old-open", TradeState.OPEN, NOW))
+        await trades.create(
+            _trade(
+                "old-closed-win",
+                TradeState.CLOSED,
+                NOW - timedelta(minutes=2),
+                profit=Decimal("2.50"),
+            ),
+        )
+        await trades.create(
+            _trade(
+                "old-closed-loss",
+                TradeState.CLOSED,
+                NOW - timedelta(minutes=1),
+                profit=Decimal("-0.75"),
+            ),
+        )
         await trades.create(_trade("new-closed", TradeState.CLOSED, NOW + timedelta(minutes=2)))
         await positions.create(_position("closed-position", TradeState.CLOSED, NOW))
         await positions.create(
@@ -80,6 +96,7 @@ async def test_trading_repositories_return_bounded_dashboard_lists(
         open_positions = await PositionRepository(session).list_open(limit=5)
         recent_orders = await OrderRepository(session).list_recent(limit=1)
         open_orders = await OrderRepository(session).list_open(limit=5)
+        closed_trade_summary = await TradeRepository(session).closed_trade_summary()
 
     # Then: each list is bounded, ordered newest-first, and filters open state.
     assert tuple(trade.trade_id for trade in recent_trades) == ("new-closed",)
@@ -87,6 +104,10 @@ async def test_trading_repositories_return_bounded_dashboard_lists(
     assert tuple(position.position_id for position in open_positions) == ("open-position",)
     assert tuple(order.order_id for order in recent_orders) == ("open-order",)
     assert tuple(order.order_id for order in open_orders) == ("open-order",)
+    assert closed_trade_summary.closed_trades == 3
+    assert closed_trade_summary.wins == 2
+    assert closed_trade_summary.losses == 1
+    assert closed_trade_summary.profit == Decimal("2.75")
 
 
 async def test_lock_repository_returns_active_dashboard_locks(
@@ -123,6 +144,14 @@ async def test_create_app_dashboard_reads_seeded_persistence_rows(
         await TradeRepository(session).create(
             _trade("closed-trade", TradeState.CLOSED, NOW + timedelta(minutes=1)),
         )
+        await TradeRepository(session).create(
+            _trade(
+                "older-closed-loss",
+                TradeState.CLOSED,
+                NOW - timedelta(minutes=1),
+                profit=Decimal("-0.25"),
+            ),
+        )
         await session.commit()
     settings = RuntimeSettings(
         database=DatabaseSettings(url=database.database_url),
@@ -132,7 +161,7 @@ async def test_create_app_dashboard_reads_seeded_persistence_rows(
         transport=ASGITransport(
             app=create_app(
                 settings=settings,
-                dashboard_store=PersistenceDashboardReadStore(database),
+                dashboard_store=PersistenceDashboardReadStore(database, trade_limit=1),
             ),
         ),
         base_url="http://testserver",
@@ -145,12 +174,13 @@ async def test_create_app_dashboard_reads_seeded_persistence_rows(
     assert snapshot.equity_points[0].equity == "1000.10"
     assert snapshot.open_positions[0].position_id == "open-position"
     assert snapshot.recent_trades[0].trade_id == "closed-trade"
-    assert 'data-testid="open-trades"><span>Open trades</span><strong>1</strong>' in (
-        home_response.text
-    )
-    assert 'data-testid="session-pnl"><span>Session PnL</span><strong>1.00 USDT</strong>' in (
-        home_response.text
-    )
+    assert len(snapshot.recent_trades) == 1
+    assert snapshot.closed_trade_summary.closed_trades == 2
+    assert snapshot.closed_trade_summary.wins == 1
+    assert snapshot.closed_trade_summary.losses == 1
+    assert snapshot.closed_trade_summary.profit == "0.75"
+    assert home_response.status_code == 200
+    assert 'data-nfi-page="home"' in home_response.text
 
 
 async def test_persistence_dashboard_store_initializes_database_once(
@@ -174,8 +204,14 @@ async def test_persistence_dashboard_store_initializes_database_once(
     assert initialize_calls == 1
 
 
-def _trade(trade_id: str, state: TradeState, opened_at: datetime) -> TradeRecord:
-    closed_at, exit_price, profit = _trade_close_values(state, opened_at)
+def _trade(
+    trade_id: str,
+    state: TradeState,
+    opened_at: datetime,
+    *,
+    profit: Decimal | None = None,
+) -> TradeRecord:
+    closed_at, exit_price, default_profit = _trade_close_values(state, opened_at)
     return TradeRecord(
         trade_id=trade_id,
         pair="BTC/USDT",
@@ -187,7 +223,7 @@ def _trade(trade_id: str, state: TradeState, opened_at: datetime) -> TradeRecord
         exit_price=exit_price,
         quantity=Decimal("0.1"),
         leverage=Decimal(1),
-        profit=profit,
+        profit=default_profit if profit is None else profit,
     )
 
 

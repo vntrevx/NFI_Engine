@@ -14,7 +14,12 @@ from nfi_engine.persistence.converters import (
     decimal_to_storage,
 )
 from nfi_engine.persistence.models import OrderRow, PositionRow, TradeRow
-from nfi_engine.persistence.records import OrderRecord, PositionRecord, TradeRecord
+from nfi_engine.persistence.records import (
+    OrderRecord,
+    PositionRecord,
+    TradeAggregateRecord,
+    TradeRecord,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,6 +60,20 @@ class TradeRepository:
             )
         ).all()
         return tuple(_trade_record(row) for row in rows)
+
+    async def closed_trade_summary(self) -> TradeAggregateRecord:
+        profits = (
+            await self._session.scalars(
+                select(TradeRow.profit).where(TradeRow.state == TradeState.CLOSED.value),
+            )
+        ).all()
+        decimal_profits = tuple(decimal_from_storage(profit) for profit in profits)
+        return TradeAggregateRecord(
+            closed_trades=len(decimal_profits),
+            wins=sum(1 for profit in decimal_profits if profit > Decimal(0)),
+            losses=sum(1 for profit in decimal_profits if profit < Decimal(0)),
+            profit=sum(decimal_profits, Decimal(0)),
+        )
 
     async def update_state(
         self,

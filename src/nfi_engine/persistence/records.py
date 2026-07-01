@@ -5,6 +5,15 @@ from datetime import datetime
 from decimal import Decimal
 
 from nfi_engine.domain import OrderState, OrderType, PositionSide, TradeState
+from nfi_engine.execution import ExecutionEventType, ExecutionState
+
+
+@dataclass(frozen=True, slots=True)
+class TradeAggregateRecord:
+    closed_trades: int
+    wins: int
+    losses: int
+    profit: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,3 +78,72 @@ class StrategyCustomDataRecord:
     key: str
     value_json: str
     updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionIntentRecord:
+    intent_id: str
+    idempotency_key: str
+    client_order_id: str
+    pair: str
+    side: PositionSide
+    order_type: OrderType
+    requested_quantity: Decimal
+    requested_price: Decimal | None
+    state: ExecutionState
+    raw_status_code: str | None
+    metadata_json: str
+    created_at: datetime
+    updated_at: datetime
+    exchange_created_at: datetime | None
+    exchange_updated_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionOrderRecord:
+    execution_order_id: str
+    intent_id: str
+    client_order_id: str
+    exchange_order_id: str | None
+    pair: str
+    side: PositionSide
+    order_type: OrderType
+    requested_quantity: Decimal
+    requested_price: Decimal | None
+    filled_quantity: Decimal
+    average_fill_price: Decimal | None
+    state: ExecutionState
+    raw_status_code: str | None
+    metadata_json: str
+    created_at: datetime
+    updated_at: datetime
+    exchange_created_at: datetime | None
+    exchange_updated_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionFillRecord:
+    execution_fill_id: str
+    intent_id: str
+    execution_order_id: str
+    exchange_order_id: str | None
+    pair: str
+    side: PositionSide
+    quantity: Decimal
+    price: Decimal
+    fee_asset: str | None
+    fee_amount: Decimal | None
+    metadata_json: str
+    filled_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionEventRecord:
+    event_id: int | None
+    intent_id: str
+    event_type: ExecutionEventType
+    state: ExecutionState
+    message: str
+    raw_status_code: str | None
+    metadata_json: str
+    occurred_at: datetime

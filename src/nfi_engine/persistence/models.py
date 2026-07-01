@@ -84,3 +84,76 @@ class BotStateRow(Base):
 
     key: Mapped[str] = mapped_column(String(120), primary_key=True)
     value_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class ExecutionIntentRow(Base):
+    __tablename__: str = "execution_intents"
+
+    intent_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
+    client_order_id: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
+    pair: Mapped[str] = mapped_column(String(40), nullable=False)
+    side: Mapped[str] = mapped_column(String(16), nullable=False)
+    order_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    requested_quantity: Mapped[str] = mapped_column(String(80), nullable=False)
+    requested_price: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    raw_status_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    updated_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    exchange_created_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    exchange_updated_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class ExecutionOrderRow(Base):
+    __tablename__: str = "execution_orders"
+
+    execution_order_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    intent_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    client_order_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    exchange_order_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    pair: Mapped[str] = mapped_column(String(40), nullable=False)
+    side: Mapped[str] = mapped_column(String(16), nullable=False)
+    order_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    requested_quantity: Mapped[str] = mapped_column(String(80), nullable=False)
+    requested_price: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    filled_quantity: Mapped[str] = mapped_column(String(80), nullable=False)
+    average_fill_price: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    raw_status_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    updated_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    exchange_created_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    exchange_updated_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class ExecutionFillRow(Base):
+    __tablename__: str = "execution_fills"
+
+    execution_fill_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    intent_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    execution_order_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    exchange_order_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    pair: Mapped[str] = mapped_column(String(40), nullable=False)
+    side: Mapped[str] = mapped_column(String(16), nullable=False)
+    quantity: Mapped[str] = mapped_column(String(80), nullable=False)
+    price: Mapped[str] = mapped_column(String(80), nullable=False)
+    fee_asset: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    fee_amount: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False)
+    filled_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+
+
+class ExecutionEventRow(Base):
+    __tablename__: str = "execution_events"
+
+    event_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    intent_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    raw_status_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
